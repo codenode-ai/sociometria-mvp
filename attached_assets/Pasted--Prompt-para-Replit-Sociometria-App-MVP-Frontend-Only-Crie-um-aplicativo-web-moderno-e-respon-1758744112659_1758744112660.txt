@@ -1,0 +1,94 @@
+🚀 Prompt para Replit – Sociometria App (MVP Frontend-Only)
+
+Crie um aplicativo web moderno e responsivo chamado Sociometria App, para empresas de limpeza, que simula o processo de formar duplas de funcionárias (Drive + Help) com base em perfis psicológicos e sociometria.
+
+O objetivo é entregar um MVP navegável e bonito, apenas frontend, sem backend. Todos os dados podem ser mockados.
+
+🔹 Estrutura de Páginas e Fluxo
+1. Dashboard (Home)
+
+Exibir logo + título.
+
+Cards grandes já mostrando duplas recomendadas com nomes e papéis (Drive/Help) + justificativa curta.
+
+Botão “Gerar Novas Duplas” (simula refresh).
+
+Menu de navegação (ícones ou sidebar) para os módulos:
+
+Funcionárias | Casas | Testes | Sociometria | Relatórios
+
+2. Funcionárias
+
+Lista em cards: nome, papel (Drive/Help), status, traços principais.
+
+Botão “+ Adicionar Funcionária” → formulário simples (nome + papel).
+
+Ação de excluir funcionária (mock).
+
+3. Casas
+
+Lista em cards: nome/ID, tipo (dinâmica, padrão, detalhista), nível de exigência, feedback (estrelinhas).
+
+Botão “+ Cadastrar Casa” → formulário simples.
+
+Ação de excluir (mock).
+
+4. Testes
+
+Página separada para testes psicológicos.
+
+Listar testes existentes em cards (título + descrição).
+
+Botões: Editar | Excluir em cada card.
+
+Botão “+ Novo Teste” → modal para criar (título + descrição).
+
+Mock de editor de perguntas (apenas simulação visual).
+
+5. Sociometria
+
+Página separada para sociometria.
+
+Formulário: selecionar funcionária e marcar preferências/evitações (mock).
+
+Gráfico de rede (SVG simples) com nós (funcionárias) e conexões:
+
+Linha contínua = prefere.
+
+Linha tracejada = evita.
+
+Tabela resumo com pares fortes e problemáticos.
+
+6. Relatórios
+
+Cards e gráficos simulados:
+
+Desempenho por funcionária.
+
+Combinações que mais funcionaram.
+
+Botão “Exportar PDF” (mock).
+
+🎨 UX e Estética
+
+Design moderno, clean e responsivo.
+
+Cards com cantos arredondados, sombras suaves e tipografia clara.
+
+Menu de navegação intuitivo com ícones.
+
+Mobile-first: cards verticais no celular, grid no desktop.
+
+🔹 MVP Funcionalidades
+
+Dashboard inicial já exibindo duplas mockadas.
+
+CRUD visual de Funcionárias, Casas e Testes (mockado).
+
+Sociometria com gráfico interativo simples (mock).
+
+Relatórios com cards e botão simulado de exportar.
+
+Navegação fluida entre módulos.
+
+👉 Entregue um frontend completo, pronto para navegar no Replit, sem precisar de backend. Todos os dados podem ser mockados.
