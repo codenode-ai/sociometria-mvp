@@ -1,39 +1,43 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Building2, Star, Trash2 } from "lucide-react"
-import { House } from "@shared/schema"
+﻿import { useTranslation } from "react-i18next";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Building2, Star, Trash2 } from "lucide-react";
+import { House } from "@shared/schema";
 
 interface HouseCardProps {
-  house: House
-  onDelete?: (id: string) => void
-  className?: string
+  house: House;
+  onDelete?: (id: string) => void;
+  className?: string;
 }
 
-export default function HouseCard({ house, onDelete, className }: HouseCardProps) {
-  const typeColor = house.type === "Dinâmica" ? "bg-red-50 text-red-700" : 
-                   house.type === "Padrão" ? "bg-blue-50 text-blue-700" : 
-                   "bg-purple-50 text-purple-700"
+const typeColorMap: Record<House["type"], string> = {
+  dynamic: "bg-red-50 text-red-700",
+  standard: "bg-blue-50 text-blue-700",
+  detailed: "bg-purple-50 text-purple-700",
+};
 
-  const getDifficultyStars = (difficulty: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star 
-        key={i} 
-        className={`w-4 h-4 ${i < difficulty ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+export default function HouseCard({ house, onDelete, className }: HouseCardProps) {
+  const { t } = useTranslation();
+
+  const getDifficultyStars = (difficulty: number) =>
+    Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={`w-4 h-4 ${i < difficulty ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
       />
-    ))
-  }
+    ));
 
   return (
-    <Card className={`hover-elevate ${className}`} data-testid={`card-house-${house.id}`}>
+    <Card className={`hover-elevate ${className ?? ""}`} data-testid={`card-house-${house.id}`}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg flex items-center gap-2">
           <Building2 className="w-5 h-5 text-muted-foreground" />
           <span data-testid={`text-house-name-${house.id}`}>{house.name}</span>
         </CardTitle>
         {onDelete && (
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             onClick={() => onDelete(house.id)}
             className="text-destructive hover:text-destructive"
@@ -45,13 +49,15 @@ export default function HouseCard({ house, onDelete, className }: HouseCardProps
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex gap-2">
-          <Badge variant="outline" className={typeColor}>
-            {house.type}
+          <Badge variant="outline" className={typeColorMap[house.type]}>
+            {t(`houseTypes.${house.type}`)}
           </Badge>
         </div>
-        
+
         <div>
-          <p className="text-sm font-medium text-muted-foreground mb-1">Nível de Exigência:</p>
+          <p className="text-sm font-medium text-muted-foreground mb-1">
+            {t("houses.card.difficulty")}
+          </p>
           <div className="flex items-center gap-1">
             {getDifficultyStars(house.difficulty)}
             <span className="text-sm ml-2">({house.difficulty}/5)</span>
@@ -59,7 +65,9 @@ export default function HouseCard({ house, onDelete, className }: HouseCardProps
         </div>
 
         <div>
-          <p className="text-sm font-medium text-muted-foreground mb-1">Avaliação:</p>
+          <p className="text-sm font-medium text-muted-foreground mb-1">
+            {t("houses.card.rating")}
+          </p>
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
             <span className="text-sm font-medium">{house.rating.toFixed(1)}</span>
@@ -69,11 +77,11 @@ export default function HouseCard({ house, onDelete, className }: HouseCardProps
         {house.address && (
           <div>
             <p className="text-sm text-muted-foreground">
-              <strong>Endereço:</strong> {house.address}
+              <strong>{t("houses.card.address")}:</strong> {house.address}
             </p>
           </div>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

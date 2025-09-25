@@ -1,5 +1,5 @@
-import { Home, Users, Building2, FileText, Network, BarChart3 } from "lucide-react"
-import { Link, useLocation } from "wouter"
+﻿import { Home, Users, Building2, FileText, Network, BarChart3 } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import {
   Sidebar,
   SidebarContent,
@@ -10,43 +10,45 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
+import { useTranslation } from "react-i18next";
 
 const menuItems = [
   {
-    title: "Dashboard",
+    titleKey: "navigation.dashboard",
     url: "/",
     icon: Home,
   },
   {
-    title: "Funcionárias",
+    titleKey: "navigation.employees",
     url: "/funcionarias",
     icon: Users,
   },
   {
-    title: "Casas",
+    titleKey: "navigation.houses",
     url: "/casas",
     icon: Building2,
   },
   {
-    title: "Testes",
+    titleKey: "navigation.tests",
     url: "/testes",
     icon: FileText,
   },
   {
-    title: "Sociometria",
+    titleKey: "navigation.sociometry",
     url: "/sociometria",
     icon: Network,
   },
   {
-    title: "Relatórios",
+    titleKey: "navigation.reports",
     url: "/relatorios",
     icon: BarChart3,
   },
-]
+] as const;
 
 export function AppSidebar() {
-  const [location] = useLocation()
+  const [location] = useLocation();
+  const { t } = useTranslation();
 
   return (
     <Sidebar data-testid="sidebar-main">
@@ -56,26 +58,25 @@ export function AppSidebar() {
             <Network className="w-5 h-5 text-primary-foreground" />
           </div>
           <div>
-            <h2 className="font-semibold text-lg">Sociometria</h2>
-            <p className="text-sm text-muted-foreground">Sistema de Duplas</p>
+            <h2 className="font-semibold text-lg">{t("app.name")}</h2>
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("navigation.label")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
+                <SidebarMenuItem key={item.titleKey}>
+                  <SidebarMenuButton
+                    asChild
                     isActive={location === item.url}
-                    data-testid={`link-${item.title.toLowerCase()}`}
+                    data-testid={`link-${item.titleKey.split(".").pop()}`}
                   >
                     <Link href={item.url}>
                       <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
+                      <span>{t(item.titleKey)}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -85,5 +86,5 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
     </Sidebar>
-  )
+  );
 }
