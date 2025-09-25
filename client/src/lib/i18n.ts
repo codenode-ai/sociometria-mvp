@@ -46,18 +46,15 @@ const resources = {
         help: "Help",
         support: "Suporte",
       },
-      houseTypes: {
-        dynamic: "Dinamica",
-        standard: "Padrao",
-        detailed: "Detalhista",
+      cleaningTypes: {
+        quick: "Limpeza rapida",
+        standard: "Limpeza padrao",
+        meticulous: "Limpeza minuciosa",
       },
-      difficulty: {
-        label: "Nivel de exigencia",
-        option1: "1 - Muito facil",
-        option2: "2 - Facil",
-        option3: "3 - Medio",
-        option4: "4 - Dificil",
-        option5: "5 - Muito dificil",
+      houseSizes: {
+        small: "Pequena",
+        medium: "Media",
+        large: "Grande",
       },
       traits: {
         organized: "Organizada",
@@ -154,20 +151,38 @@ const resources = {
         searchPlaceholder: "Buscar casas...",
         counter: "{{filtered}} de {{total}} casas",
         empty: "Nenhuma casa encontrada",
+        viewModes: {
+          aria: "Selecionar visualizacao",
+          cards: "Cartoes",
+          list: "Lista",
+        },
+        list: {
+          headers: {
+            name: "Casa",
+            cleaningType: "Tipo de limpeza",
+            size: "Tamanho",
+            address: "Endereco",
+            actions: "Acoes",
+          },
+        },
         card: {
-          difficulty: "Nivel de exigencia",
-          rating: "Avaliacao",
+          cleaningType: "Tipo de limpeza",
+          size: "Tamanho",
           address: "Endereco",
         },
         addModal: {
           title: "Nova casa",
           nameLabel: "Nome/ID",
           namePlaceholder: "Ex: Casa Silva, Apto 101",
-          typeLabel: "Tipo",
-          difficultyLabel: "Nivel de exigencia (1-5)",
+          cleaningTypeLabel: "Tipo de limpeza",
+          sizeLabel: "Tamanho do imovel",
           addressLabel: "Endereco (opcional)",
           addressPlaceholder: "Endereco da casa",
           submit: "Cadastrar",
+        },
+        editModal: {
+          title: "Editar casa",
+          submit: "Salvar alteracoes",
         },
       },
       tests: {
@@ -177,6 +192,23 @@ const resources = {
         counter: "{{filtered}} de {{total}} testes",
         empty: "Nenhum teste encontrado",
         createdAt: "Criado em",
+        estimatedDuration: "Duracao estimada: {{minutes}} min",
+        languages: {
+          pt: "Portugues",
+          en: "Ingles",
+          es: "Espanhol",
+        },
+        bands: {
+          low: "Baixo nivel",
+          medium: "Equilibrado",
+          high: "Alto nivel",
+          lowDescription: "Resultados abaixo do esperado.",
+          mediumDescription: "Equilibrio com pontos de atencao.",
+          highDescription: "Dominio consistente na dimensao avaliada.",
+        },
+        history: {
+          createdManually: "Teste criado manualmente",
+        },
         questionsCount_one: "{{count}} pergunta",
         questionsCount_other: "{{count}} perguntas",
         list: {
@@ -199,6 +231,7 @@ const resources = {
           namePlaceholder: "Ex: Avaliacao de personalidade",
           descriptionLabel: "Descricao",
           descriptionPlaceholder: "Descreva o objetivo e a metodologia do teste...",
+          languageLabel: "Idioma base",
         },
       },
       sociometry: {
@@ -238,7 +271,7 @@ const resources = {
           },
           pairEfficiency: {
             title: "Eficiencia de equipes",
-            description: "Quais combinacoes alcançam melhores resultados coletivos.",
+            description: "Quais combinacoes alcanÃ§am melhores resultados coletivos.",
           },
           temporalAnalysis: {
             title: "Linha do tempo",
@@ -321,18 +354,15 @@ const resources = {
         help: "Help",
         support: "Support",
       },
-      houseTypes: {
-        dynamic: "Dynamic",
-        standard: "Standard",
-        detailed: "Detail-oriented",
+      cleaningTypes: {
+        quick: "Quick cleaning",
+        standard: "Standard cleaning",
+        meticulous: "Meticulous cleaning",
       },
-      difficulty: {
-        label: "Difficulty level",
-        option1: "1 - Very easy",
-        option2: "2 - Easy",
-        option3: "3 - Medium",
-        option4: "4 - Hard",
-        option5: "5 - Very hard",
+      houseSizes: {
+        small: "Small",
+        medium: "Medium",
+        large: "Large",
       },
       traits: {
         organized: "Organized",
@@ -429,20 +459,38 @@ const resources = {
         searchPlaceholder: "Search houses...",
         counter: "{{filtered}} of {{total}} houses",
         empty: "No houses found",
+        viewModes: {
+          aria: "Select view mode",
+          cards: "Cards",
+          list: "List",
+        },
+        list: {
+          headers: {
+            name: "House",
+            cleaningType: "Cleaning type",
+            size: "Size",
+            address: "Address",
+            actions: "Actions",
+          },
+        },
         card: {
-          difficulty: "Difficulty level",
-          rating: "Rating",
+          cleaningType: "Cleaning type",
+          size: "Size",
           address: "Address",
         },
         addModal: {
           title: "New house",
           nameLabel: "Name/ID",
           namePlaceholder: "Example: Silva House, Apt 101",
-          typeLabel: "Type",
-          difficultyLabel: "Difficulty level (1-5)",
+          cleaningTypeLabel: "Cleaning type",
+          sizeLabel: "Property size",
           addressLabel: "Address (optional)",
           addressPlaceholder: "House address",
           submit: "Register",
+        },
+        editModal: {
+          title: "Edit house",
+          submit: "Save changes",
         },
       },
       tests: {
@@ -452,6 +500,23 @@ const resources = {
         counter: "{{filtered}} of {{total}} tests",
         empty: "No tests found",
         createdAt: "Created on",
+        estimatedDuration: "Estimated duration: {{minutes}} min",
+        languages: {
+          pt: "Portuguese",
+          en: "English",
+          es: "Spanish",
+        },
+        bands: {
+          low: "Low level",
+          medium: "Balanced",
+          high: "High level",
+          lowDescription: "Results below the expected range.",
+          mediumDescription: "Balanced profile with attention points.",
+          highDescription: "Strong mastery in this dimension.",
+        },
+        history: {
+          createdManually: "Test created manually",
+        },
         questionsCount_one: "{{count}} question",
         questionsCount_other: "{{count}} questions",
         list: {
@@ -474,6 +539,7 @@ const resources = {
           namePlaceholder: "Example: Personality assessment",
           descriptionLabel: "Description",
           descriptionPlaceholder: "Describe the test goal and methodology...",
+          languageLabel: "Base language",
         },
       },
       sociometry: {
@@ -596,18 +662,15 @@ const resources = {
         help: "Help",
         support: "Apoyo",
       },
-      houseTypes: {
-        dynamic: "Dinamica",
-        standard: "Estandar",
-        detailed: "Detallista",
+      cleaningTypes: {
+        quick: "Limpieza rapida",
+        standard: "Limpieza estandar",
+        meticulous: "Limpieza minuciosa",
       },
-      difficulty: {
-        label: "Nivel de exigencia",
-        option1: "1 - Muy facil",
-        option2: "2 - Facil",
-        option3: "3 - Medio",
-        option4: "4 - Dificil",
-        option5: "5 - Muy dificil",
+      houseSizes: {
+        small: "Pequena",
+        medium: "Mediana",
+        large: "Grande",
       },
       traits: {
         organized: "Organizada",
@@ -704,20 +767,38 @@ const resources = {
         searchPlaceholder: "Buscar casas...",
         counter: "{{filtered}} de {{total}} casas",
         empty: "No se encontraron casas",
+        viewModes: {
+          aria: "Seleccionar vista",
+          cards: "Tarjetas",
+          list: "Lista",
+        },
+        list: {
+          headers: {
+            name: "Casa",
+            cleaningType: "Tipo de limpieza",
+            size: "Tamano",
+            address: "Direccion",
+            actions: "Acciones",
+          },
+        },
         card: {
-          difficulty: "Nivel de exigencia",
-          rating: "Calificacion",
+          cleaningType: "Tipo de limpieza",
+          size: "Tamano",
           address: "Direccion",
         },
         addModal: {
           title: "Nueva casa",
           nameLabel: "Nombre/ID",
           namePlaceholder: "Ej: Casa Silva, Apto 101",
-          typeLabel: "Tipo",
-          difficultyLabel: "Nivel de exigencia (1-5)",
+          cleaningTypeLabel: "Tipo de limpieza",
+          sizeLabel: "Tamano de la propiedad",
           addressLabel: "Direccion (opcional)",
           addressPlaceholder: "Direccion de la casa",
           submit: "Registrar",
+        },
+        editModal: {
+          title: "Editar casa",
+          submit: "Guardar cambios",
         },
       },
       tests: {
@@ -727,6 +808,23 @@ const resources = {
         counter: "{{filtered}} de {{total}} pruebas",
         empty: "No se encontraron pruebas",
         createdAt: "Creado el",
+        estimatedDuration: "Duracion estimada: {{minutes}} min",
+        languages: {
+          pt: "Portugues",
+          en: "Ingles",
+          es: "Espanol",
+        },
+        bands: {
+          low: "Nivel bajo",
+          medium: "Equilibrado",
+          high: "Nivel alto",
+          lowDescription: "Resultados por debajo de lo esperado.",
+          mediumDescription: "Equilibrio general con puntos de atencion.",
+          highDescription: "Dominio consistente en la dimension evaluada.",
+        },
+        history: {
+          createdManually: "Prueba creada manualmente",
+        },
         questionsCount_one: "{{count}} pregunta",
         questionsCount_other: "{{count}} preguntas",
         list: {
@@ -749,6 +847,7 @@ const resources = {
           namePlaceholder: "Ej: Evaluacion de personalidad",
           descriptionLabel: "Descripcion",
           descriptionPlaceholder: "Describe el objetivo y la metodologia de la prueba...",
+          languageLabel: "Idioma base",
         },
       },
       sociometry: {
@@ -846,3 +945,4 @@ i18n
 export { resources };
 
 export type AppLanguage = keyof typeof resources;
+

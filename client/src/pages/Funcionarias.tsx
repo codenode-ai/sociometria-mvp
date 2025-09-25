@@ -60,6 +60,11 @@ const employeesData: Employee[] = [
   },
 ];
 
+const normalizeText = (value: string) => value
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .toLowerCase();
+
 type ViewMode = "cards" | "list";
 
 export default function Funcionarias() {
@@ -71,19 +76,14 @@ export default function Funcionarias() {
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
 
   const filteredEmployees = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
+    const term = searchTerm.trim();
     if (!term) {
       return employees;
     }
 
-    return employees.filter((emp) => {
-      const nameMatch = emp.name.toLowerCase().includes(term);
-      const roleMatch = t(`roles.${emp.role}`).toLowerCase().includes(term);
-      const statusMatch = t(`statuses.${emp.status}`).toLowerCase().includes(term);
-      const traitMatch = emp.traits.some((trait) => t(`traits.${trait}`).toLowerCase().includes(term));
-      return nameMatch || roleMatch || statusMatch || traitMatch;
-    });
-  }, [employees, searchTerm, t]);
+    const normalizedTerm = normalizeText(term);
+    return employees.filter((emp) => normalizeText(emp.name).includes(normalizedTerm));
+  }, [employees, searchTerm]);
 
   const handleAddEmployee = (newEmployee: InsertEmployee) => {
     const employee: Employee = {

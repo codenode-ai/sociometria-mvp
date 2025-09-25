@@ -56,9 +56,9 @@ const initialTeams: TeamRecommendation[] = [
     house: {
       id: "house-1",
       name: "Residencia Executiva",
-      type: "detailed",
-      difficulty: 5,
-      rating: 4.9,
+      cleaningType: "meticulous",
+      size: "large",
+      address: "Av. Principal, 456 - Centro",
     },
   },
 ];
@@ -313,3 +313,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+

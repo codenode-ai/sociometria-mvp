@@ -20,7 +20,7 @@ export default function TeamCardExample() {
       },
       {
         id: "3",
-        name: "Lívia Rocha",
+        name: "Livia Rocha",
         role: "support" as const,
         status: "active" as const,
         traits: ["trustworthy", "collaborative"],
@@ -31,9 +31,9 @@ export default function TeamCardExample() {
     house: {
       id: "1",
       name: "Casa Premium",
-      type: "detailed" as const,
-      difficulty: 4,
-      rating: 4.8,
+      cleaningType: "meticulous" as const,
+      size: "large" as const,
+      address: "Rua das Flores, 123 - Vila Rica",
     },
   };
 

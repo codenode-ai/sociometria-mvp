@@ -4,9 +4,8 @@ export default function HouseCardExample() {
   const mockHouse = {
     id: "1",
     name: "Casa Premium",
-    type: "detailed" as const,
-    difficulty: 4,
-    rating: 4.8,
+    cleaningType: "meticulous" as const,
+    size: "large" as const,
     address: "Rua das Flores, 123 - Vila Rica",
   };
 

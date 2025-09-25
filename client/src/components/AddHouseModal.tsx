@@ -8,41 +8,58 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus } from "lucide-react";
 import { InsertHouse } from "@shared/schema";
 
+type CleaningType = InsertHouse["cleaningType"];
+type HouseSize = InsertHouse["size"];
+
 interface AddHouseModalProps {
   onAdd: (house: InsertHouse) => void;
   trigger?: React.ReactNode;
 }
 
-const difficultyOptions = [
-  { value: "1", labelKey: "difficulty.option1" },
-  { value: "2", labelKey: "difficulty.option2" },
-  { value: "3", labelKey: "difficulty.option3" },
-  { value: "4", labelKey: "difficulty.option4" },
-  { value: "5", labelKey: "difficulty.option5" },
-];
+const CLEANING_OPTIONS: CleaningType[] = ["quick", "standard", "meticulous"];
+const SIZE_OPTIONS: HouseSize[] = ["small", "medium", "large"];
 
 export default function AddHouseModal({ onAdd, trigger }: AddHouseModalProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<InsertHouse>({
     name: "",
-    type: "standard",
-    difficulty: 3,
+    cleaningType: "standard",
+    size: "medium",
     address: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.name.trim()) {
-      onAdd(formData);
-      setFormData({ name: "", type: "standard", difficulty: 3, address: "" });
-      setOpen(false);
-      console.log("House added:", formData);
+  const resetForm = () =>
+    setFormData({
+      name: "",
+      cleaningType: "standard",
+      size: "medium",
+      address: "",
+    });
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const name = formData.name.trim();
+    if (!name) {
+      return;
     }
+
+    onAdd({
+      ...formData,
+      name,
+      address: formData.address?.trim() ? formData.address.trim() : undefined,
+    });
+    resetForm();
+    setOpen(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(value) => {
+      setOpen(value);
+      if (!value) {
+        resetForm();
+      }
+    }}>
       <DialogTrigger asChild>
         {trigger || (
           <Button data-testid="button-add-house">
@@ -61,58 +78,59 @@ export default function AddHouseModal({ onAdd, trigger }: AddHouseModalProps) {
             <Input
               id="houseName"
               value={formData.name}
-              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+              onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))}
               placeholder={t("houses.addModal.namePlaceholder")}
               data-testid="input-house-name"
             />
           </div>
-          <div>
-            <Label htmlFor="houseType">{t("houses.addModal.typeLabel")}</Label>
-            <Select
-              value={formData.type}
-              onValueChange={(value: "dynamic" | "standard" | "detailed") =>
-                setFormData((prev) => ({ ...prev, type: value }))
-              }
-            >
-              <SelectTrigger data-testid="select-house-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="standard">{t("houseTypes.standard")}</SelectItem>
-                <SelectItem value="dynamic">{t("houseTypes.dynamic")}</SelectItem>
-                <SelectItem value="detailed">{t("houseTypes.detailed")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="difficulty">{t("houses.addModal.difficultyLabel")}</Label>
-            <Select
-              value={formData.difficulty.toString()}
-              onValueChange={(value) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  difficulty: parseInt(value, 10) as 1 | 2 | 3 | 4 | 5,
-                }))
-              }
-            >
-              <SelectTrigger data-testid="select-house-difficulty">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {difficultyOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {t(option.labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="houseCleaning">{t("houses.addModal.cleaningTypeLabel")}</Label>
+              <Select
+                value={formData.cleaningType}
+                onValueChange={(value: CleaningType) =>
+                  setFormData((prev) => ({ ...prev, cleaningType: value }))
+                }
+              >
+                <SelectTrigger id="houseCleaning" data-testid="select-house-cleaning">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLEANING_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {t(`cleaningTypes.${option}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="houseSize">{t("houses.addModal.sizeLabel")}</Label>
+              <Select
+                value={formData.size}
+                onValueChange={(value: HouseSize) =>
+                  setFormData((prev) => ({ ...prev, size: value }))
+                }
+              >
+                <SelectTrigger id="houseSize" data-testid="select-house-size">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SIZE_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {t(`houseSizes.${option}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div>
             <Label htmlFor="address">{t("houses.addModal.addressLabel")}</Label>
             <Input
               id="address"
-              value={formData.address || ""}
-              onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
+              value={formData.address ?? ""}
+              onChange={(event) => setFormData((prev) => ({ ...prev, address: event.target.value }))}
               placeholder={t("houses.addModal.addressPlaceholder")}
               data-testid="input-house-address"
             />

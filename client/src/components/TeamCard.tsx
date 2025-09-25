@@ -100,18 +100,21 @@ export default function TeamCard({ team, className, onEdit, onDelete }: TeamCard
         </div>
 
         {team.house && (
-          <div className="pt-2 border-t">
+          <div className="pt-2 border-t space-y-2">
             <p className="text-sm">
               <strong>{t("teamCard.suggestedHouse")}: </strong>
               {team.house.name}
-              <Badge variant="outline" className="ml-2">
-                {t(`houseTypes.${team.house.type}`)}
-              </Badge>
             </p>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">{t(`cleaningTypes.${team.house.cleaningType}`)}</Badge>
+              <Badge variant="secondary">{t(`houseSizes.${team.house.size}`)}</Badge>
+            </div>
+            {team.house.address && (
+              <p className="text-sm text-muted-foreground">{team.house.address}</p>
+            )}
           </div>
         )}
       </CardContent>
     </Card>
   );
 }
-

@@ -1,88 +1,80 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import TestCard from "@/components/TestCard";
 import AddTestModal from "@/components/AddTestModal";
-import { PsychologicalTest, InsertTest } from "@shared/schema";
+import type { InsertTest, LikertBand, PsychologicalTest, SupportedLanguage, TestVersionMeta } from "@shared/schema";
+import { mockAssessments, mockAssessmentAssignments, mockAssessmentLinks, mockAssessmentSessions, mockTests } from "@/lib/mock/test-data";
+import { slugify } from "@/lib/utils";
 
-type LocalTest = PsychologicalTest & {
-  titleKey?: string;
-  descriptionKey?: string;
-};
+const normalizeText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 
-const createInitialTests = (t: (key: string, options?: Record<string, unknown>) => string): LocalTest[] => [
-  {
-    id: "1",
-    titleKey: "tests.list.disc.title",
-    descriptionKey: "tests.list.disc.description",
-    title: t("tests.list.disc.title"),
-    description: t("tests.list.disc.description"),
-    questions: [
-      { id: "1", question: "Como você se comporta em situações de pressão?", type: "multiple_choice" },
-      { id: "2", question: "Qual seu nível de sociabilidade?", type: "scale" },
-    ],
-    createdAt: new Date("2024-01-15"),
-  },
-  {
-    id: "2",
-    titleKey: "tests.list.teamCompatibility.title",
-    descriptionKey: "tests.list.teamCompatibility.description",
-    title: t("tests.list.teamCompatibility.title"),
-    description: t("tests.list.teamCompatibility.description"),
-    questions: [
-      { id: "3", question: "Prefere liderar ou seguir instruções?", type: "multiple_choice" },
-      { id: "4", question: "Como lida com mudanças de rotina?", type: "scale" },
-    ],
-    createdAt: new Date("2024-02-10"),
-  },
-  {
-    id: "3",
-    titleKey: "tests.list.stress.title",
-    descriptionKey: "tests.list.stress.description",
-    title: t("tests.list.stress.title"),
-    description: t("tests.list.stress.description"),
-    questions: [{ id: "5", question: "Como reage a críticas?", type: "text" }],
-    createdAt: new Date("2024-03-05"),
-  },
+const createBandTranslations = (t: (key: string) => string): LikertBand[] => [
+  { id: "low", label: t("tests.bands.low"), min: 10, max: 25, description: t("tests.bands.lowDescription"), color: "#F97316" },
+  { id: "medium", label: t("tests.bands.medium"), min: 26, max: 40, description: t("tests.bands.mediumDescription"), color: "#FACC15" },
+  { id: "high", label: t("tests.bands.high"), min: 41, max: 50, description: t("tests.bands.highDescription"), color: "#22C55E" },
 ];
+
+const createHistoryEntry = (version: number, note: string): TestVersionMeta => ({
+  version,
+  createdAt: new Date(),
+  note,
+});
 
 export default function Testes() {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
-  const [tests, setTests] = useState<LocalTest[]>(() => createInitialTests(t));
-
-  useEffect(() => {
-    setTests((prev) =>
-      prev.map((test) => ({
-        ...test,
-        title: test.titleKey ? t(test.titleKey) : test.title,
-        description: test.descriptionKey ? t(test.descriptionKey) : test.description,
-      })),
-    );
-  }, [t]);
+  const [tests, setTests] = useState<PsychologicalTest[]>(() => mockTests.map((test) => ({ ...test })));
 
   const filteredTests = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
+    const term = normalizeText(searchTerm);
     if (!term) {
       return tests;
     }
 
     return tests.filter((test) => {
-      const titleMatch = test.title.toLowerCase().includes(term);
-      const descriptionMatch = test.description.toLowerCase().includes(term);
-      return titleMatch || descriptionMatch;
+      const titleMatch = normalizeText(test.title).includes(term);
+      const descriptionMatch = normalizeText(test.description).includes(term);
+      const tagMatch = test.tags?.some((tag) => normalizeText(tag).includes(term));
+      return titleMatch || descriptionMatch || tagMatch;
     });
   }, [tests, searchTerm]);
 
   const handleAddTest = (newTest: InsertTest) => {
-    const test: LocalTest = {
-      id: Date.now().toString(),
-      ...newTest,
+    const now = new Date();
+    const title = newTest.title.trim();
+    const description = newTest.description.trim();
+    const slug = slugify(title) || `custom-test-${now.getTime()}`;
+    const bands = createBandTranslations(t).map((band, index) => ({
+      ...band,
+      min: 10 + index * 15,
+      max: 10 + index * 15 + 14,
+    }));
+
+    const createdTest: PsychologicalTest = {
+      id: `${slug}-${now.getTime()}`,
+      slug,
+      language: newTest.language,
+      availableLanguages: [newTest.language],
+      title,
+      description,
       questions: [],
-      createdAt: new Date(),
+      interpretationBands: bands,
+      tags: ["custom"],
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+      estimatedDurationMinutes: 10,
+      history: [createHistoryEntry(1, t("tests.history.createdManually"))],
+      status: "draft",
     };
-    setTests((prev) => [...prev, test]);
+
+    setTests((prev) => [createdTest, ...prev]);
   };
 
   const handleEditTest = (id: string) => {
@@ -93,6 +85,13 @@ export default function Testes() {
     setTests((prev) => prev.filter((test) => test.id !== id));
     console.log("Test deleted:", id);
   };
+
+  // The following mock exports will be used in subsequent steps of the workflow.
+  // They are referenced here to avoid lint warnings about unused imports during stage 1.
+  void mockAssessments;
+  void mockAssessmentAssignments;
+  void mockAssessmentLinks;
+  void mockAssessmentSessions;
 
   return (
     <div className="p-6 space-y-6" data-testid="page-testes">
@@ -110,7 +109,7 @@ export default function Testes() {
           <Input
             placeholder={t("tests.searchPlaceholder")}
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(event) => setSearchTerm(event.target.value)}
             className="pl-10"
             data-testid="input-search-tests"
           />
@@ -134,3 +133,4 @@ export default function Testes() {
     </div>
   );
 }
+
