@@ -1,16 +1,19 @@
 ﻿import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Star } from "lucide-react";
+import { Users, Pencil, Trash2 } from "lucide-react";
 import type { TeamRecommendation } from "@shared/schema";
 
 interface TeamCardProps {
   team: TeamRecommendation;
   className?: string;
+  onEdit?: (team: TeamRecommendation) => void;
+  onDelete?: (team: TeamRecommendation) => void;
 }
 
-export default function TeamCard({ team, className }: TeamCardProps) {
+export default function TeamCard({ team, className, onEdit, onDelete }: TeamCardProps) {
   const { t } = useTranslation();
 
   const justification = t(team.justification, {
@@ -35,9 +38,36 @@ export default function TeamCard({ team, className }: TeamCardProps) {
             <Users className="w-5 h-5 text-primary" />
             {t("teamCard.title")}
           </CardTitle>
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            <span className="text-sm font-medium">{team.compatibility}%</span>
+          {(onEdit || onDelete) && (
+            <div className="flex items-center gap-1">
+              {onEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onEdit(team)}
+                  data-testid={`button-team-edit-${team.id}`}
+                >
+                  <span className="sr-only">{t("teamCard.edit")}</span>
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onDelete(team)}
+                  data-testid={`button-team-delete-${team.id}`}
+                  className="text-destructive"
+                >
+                  <span className="sr-only">{t("teamCard.delete")}</span>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          )}
+
+          <div className="text-sm font-medium text-muted-foreground">
+            {t("teamCard.compatibility", { value: team.compatibility })}
           </div>
         </div>
       </CardHeader>
