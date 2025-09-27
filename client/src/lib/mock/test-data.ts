@@ -1,4 +1,4 @@
-﻿import { Assessment, AssessmentAssignment, AssessmentLink, AssessmentResponseSet, AssessmentSession, LikertBand, LikertQuestion, LikertResponse, PsychologicalTest, SupportedLanguage, TestVersionMeta } from "@shared/schema";
+import { Assessment, AssessmentAssignment, AssessmentLink, AssessmentResponseSet, AssessmentSession, LikertBand, LikertQuestion, LikertResponse, PsychologicalTest, SupportedLanguage, TestVersionMeta } from "@shared/schema";
 
 const baseLikertLabels = {
   1: "Discordo totalmente",
