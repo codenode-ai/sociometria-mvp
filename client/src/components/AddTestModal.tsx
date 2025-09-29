@@ -1,80 +1,125 @@
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Plus } from "lucide-react"
-import { InsertTest } from "@shared/schema"
+﻿import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus } from "lucide-react";
+import { InsertTest, SupportedLanguage } from "@shared/schema";
+
+const LANGUAGE_OPTIONS: Array<{ value: SupportedLanguage; labelKey: string }> = [
+  { value: "pt", labelKey: "tests.languages.pt" },
+  { value: "en", labelKey: "tests.languages.en" },
+  { value: "es", labelKey: "tests.languages.es" },
+];
 
 interface AddTestModalProps {
-  onAdd: (test: InsertTest) => void
-  trigger?: React.ReactNode
+  onAdd: (test: InsertTest) => void;
+  trigger?: React.ReactNode;
 }
 
 export default function AddTestModal({ onAdd, trigger }: AddTestModalProps) {
-  const [open, setOpen] = useState(false)
+  const { t, i18n } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const initialLanguage = (i18n.language as SupportedLanguage) ?? "pt";
   const [formData, setFormData] = useState<InsertTest>({
     title: "",
-    description: ""
-  })
+    description: "",
+    language: initialLanguage,
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (formData.title.trim() && formData.description.trim()) {
-      onAdd(formData)
-      setFormData({ title: "", description: "" })
-      setOpen(false)
-      console.log('Teste criado:', formData)
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const title = formData.title.trim();
+    const description = formData.description.trim();
+
+    if (!title || !description) {
+      return;
     }
-  }
+
+    onAdd({
+      ...formData,
+      title,
+      description,
+    });
+
+    setFormData({ title: "", description: "", language: initialLanguage });
+    setOpen(false);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(value) => {
+      setOpen(value);
+      if (!value) {
+        setFormData({ title: "", description: "", language: initialLanguage });
+      }
+    }}>
       <DialogTrigger asChild>
         {trigger || (
           <Button data-testid="button-add-test">
             <Plus className="w-4 h-4 mr-2" />
-            Novo Teste
+            {t("actions.addTest")}
           </Button>
         )}
       </DialogTrigger>
       <DialogContent data-testid="modal-add-test">
         <DialogHeader>
-          <DialogTitle>Novo Teste Psicológico</DialogTitle>
+          <DialogTitle>{t("tests.addModal.title")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="title">Título</Label>
+            <Label htmlFor="test-title">{t("tests.addModal.nameLabel")}</Label>
             <Input
-              id="title"
+              id="test-title"
               value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Ex: Avaliação de Personalidade"
+              onChange={(event) => setFormData((prev) => ({ ...prev, title: event.target.value }))}
+              placeholder={t("tests.addModal.namePlaceholder")}
               data-testid="input-test-title"
             />
           </div>
           <div>
-            <Label htmlFor="description">Descrição</Label>
+            <Label htmlFor="test-description">{t("tests.addModal.descriptionLabel")}</Label>
             <Textarea
-              id="description"
+              id="test-description"
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Descreva o objetivo e metodologia do teste..."
+              onChange={(event) => setFormData((prev) => ({ ...prev, description: event.target.value }))}
+              placeholder={t("tests.addModal.descriptionPlaceholder")}
               rows={4}
               data-testid="textarea-test-description"
             />
           </div>
+          <div>
+            <Label htmlFor="test-language">{t("tests.addModal.languageLabel")}</Label>
+            <Select
+              value={formData.language}
+              onValueChange={(value: SupportedLanguage) =>
+                setFormData((prev) => ({ ...prev, language: value }))
+              }
+            >
+              <SelectTrigger id="test-language" data-testid="select-test-language">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {t(option.labelKey)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex gap-2 justify-end">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
+              {t("actions.cancel")}
             </Button>
             <Button type="submit" data-testid="button-submit-test">
-              Criar Teste
+              {t("actions.createTest")}
             </Button>
           </div>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

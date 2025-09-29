@@ -1,11 +1,12 @@
 import { z } from "zod";
 
-// Funcionária (Employee) types
+export type SupportedLanguage = "pt" | "en" | "es";
+
 export interface Employee {
   id: string;
   name: string;
-  role: "Drive" | "Help";
-  status: "Ativo" | "Inativo" | "Licença";
+  role: "drive" | "help" | "support";
+  status: "active" | "inactive" | "leave";
   traits: string[];
   preferences?: string[];
   avoidances?: string[];
@@ -13,76 +14,190 @@ export interface Employee {
 
 export const insertEmployeeSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
-  role: z.enum(["Drive", "Help"]),
+  role: z.enum(["drive", "help", "support"]),
 });
 
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
 
-// Casa (House) types
 export interface House {
   id: string;
   name: string;
-  type: "Dinâmica" | "Padrão" | "Detalhista";
-  difficulty: 1 | 2 | 3 | 4 | 5;
-  rating: number;
+  cleaningType: "quick" | "standard" | "meticulous";
+  size: "small" | "medium" | "large";
   address?: string;
 }
 
 export const insertHouseSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
-  type: z.enum(["Dinâmica", "Padrão", "Detalhista"]),
-  difficulty: z.number().min(1).max(5),
+  cleaningType: z.enum(["quick", "standard", "meticulous"]),
+  size: z.enum(["small", "medium", "large"]),
   address: z.string().optional(),
 });
 
 export type InsertHouse = z.infer<typeof insertHouseSchema>;
 
-// Test types
-export interface PsychologicalTest {
+export interface LikertQuestion {
   id: string;
-  title: string;
-  description: string;
-  questions: TestQuestion[];
-  createdAt: Date;
+  prompt: string;
+  helpText?: string;
+  dimension?: string;
+  reverseScore?: boolean;
+  scaleMin: number;
+  scaleMax: number;
+  labels?: Record<number, string>;
+  weight?: number;
 }
 
-export interface TestQuestion {
+export interface LikertBand {
   id: string;
-  question: string;
-  type: "multiple_choice" | "scale" | "text";
-  options?: string[];
+  label: string;
+  min: number;
+  max: number;
+  description?: string;
+  color?: string;
+}
+
+export interface TestVersionMeta {
+  version: number;
+  createdAt: Date;
+  note?: string;
+  author?: string;
+}
+
+export interface PsychologicalTest {
+  id: string;
+  slug: string;
+  language: SupportedLanguage;
+  availableLanguages: SupportedLanguage[];
+  title: string;
+  description: string;
+  questions: LikertQuestion[];
+  interpretationBands: LikertBand[];
+  tags?: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  version: number;
+  estimatedDurationMinutes?: number;
+  history: TestVersionMeta[];
+  status?: "draft" | "published" | "archived";
 }
 
 export const insertTestSchema = z.object({
-  title: z.string().min(3, "Título deve ter pelo menos 3 caracteres"),
-  description: z.string().min(10, "Descrição deve ter pelo menos 10 caracteres"),
+  title: z.string().min(3, "Titulo deve ter pelo menos 3 caracteres"),
+  description: z.string().min(10, "Descricao deve ter pelo menos 10 caracteres"),
+  language: z.enum(["pt", "en", "es"]),
 });
 
 export type InsertTest = z.infer<typeof insertTestSchema>;
 
-// Pair recommendation types
-export interface PairRecommendation {
+export interface AssessmentTestRef {
+  testId: string;
+  testVersion: number;
+  order: number;
+  optional?: boolean;
+}
+
+export interface Assessment {
   id: string;
-  drive: Employee;
-  help: Employee;
+  name: string;
+  slug: string;
+  description?: string;
+  tests: AssessmentTestRef[];
+  defaultLanguage: SupportedLanguage;
+  createdAt: Date;
+  updatedAt: Date;
+  version: number;
+  status: "draft" | "published" | "archived";
+  history: TestVersionMeta[];
+  metadata?: {
+    estimatedDurationMinutes?: number;
+    tags?: string[];
+  };
+}
+
+export interface AssessmentLink {
+  id: string;
+  assessmentId: string;
+  code: string;
+  language: SupportedLanguage;
+  url: string;
+  expiresAt?: Date;
+  createdAt: Date;
+}
+
+export type AssessmentAssignmentStatus = "pending" | "in_progress" | "paused" | "completed";
+
+export interface AssessmentAssignment {
+  id: string;
+  assessmentId: string;
+  assigneeId: string;
+  linkId: string;
+  language: SupportedLanguage;
+  status: AssessmentAssignmentStatus;
+  startedAt?: Date;
+  completedAt?: Date;
+  lastActivityAt?: Date;
+  progress: {
+    currentTestId?: string;
+    currentQuestionId?: string;
+    completedTests: string[];
+    percentage: number;
+    remainingTimeMs?: number;
+  };
+  attempt: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface LikertResponse {
+  questionId: string;
+  value: number;
+}
+
+export interface AssessmentResponseSet {
+  testId: string;
+  responses: LikertResponse[];
+  startedAt: Date;
+  submittedAt?: Date;
+  durationMs?: number;
+}
+
+export type AssessmentSessionStatus = "active" | "paused" | "completed" | "expired";
+
+export interface AssessmentSession {
+  id: string;
+  assignmentId: string;
+  status: AssessmentSessionStatus;
+  startedAt: Date;
+  pausedAt?: Date;
+  completedAt?: Date;
+  lastSavedAt: Date;
+  responses: AssessmentResponseSet[];
+  progress: {
+    currentTestIndex: number;
+    currentQuestionIndex: number;
+  };
+  timerMs?: number;
+}
+
+export interface TeamRecommendation {
+  id: string;
+  members: Employee[];
   compatibility: number;
   justification: string;
   house?: House;
 }
 
-// Sociometry types
 export interface SociometryData {
   employeeId: string;
   preferences: string[];
   avoidances: string[];
 }
 
-// Report types
 export interface PerformanceReport {
   employeeId: string;
   employeeName: string;
   completedTasks: number;
   averageRating: number;
   bestPartner?: string;
-  improvement: "Alta" | "Média" | "Baixa";
+  improvement: "high" | "medium" | "low";
 }

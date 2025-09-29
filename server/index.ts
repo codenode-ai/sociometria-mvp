@@ -1,4 +1,5 @@
-import express, { type Request, Response, NextFunction } from "express";
+﻿import express, { type Request, Response, NextFunction } from "express";
+import net from "net";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -26,7 +27,7 @@ app.use((req, res, next) => {
       }
 
       if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+        logLine = `${logLine.slice(0, 77)}...`;
       }
 
       log(logLine);
@@ -35,6 +36,38 @@ app.use((req, res, next) => {
 
   next();
 });
+
+async function findAvailablePort(preferredPort: number): Promise<number> {
+  const testPort = (port: number) =>
+    new Promise<number>((resolve, reject) => {
+      const tester = net.createServer();
+
+      tester.once("error", (err) => {
+        if ((err as NodeJS.ErrnoException).code === "EADDRINUSE") {
+          resolve(-1);
+        } else {
+          reject(err);
+        }
+      });
+
+      tester.once("listening", () => {
+        tester.close(() => resolve(port));
+      });
+
+      tester.listen(port, "0.0.0.0");
+    });
+
+  let port = preferredPort;
+
+  while (true) {
+    const available = await testPort(port);
+    if (available !== -1) {
+      return available;
+    }
+
+    port += 1;
+  }
+}
 
 (async () => {
   const server = await registerRoutes(app);
@@ -60,12 +93,20 @@ app.use((req, res, next) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+  const preferredPort = parseInt(process.env.PORT || "5000", 10);
+  const port = await findAvailablePort(preferredPort);
+
+  if (port !== preferredPort) {
+    log(`port ${preferredPort} already in use, falling back to ${port}`);
+  }
+
+  server.listen(
+    {
+      port,
+      host: "0.0.0.0",
+    },
+    () => {
+      log(`serving on port ${port}`);
+    },
+  );
 })();
