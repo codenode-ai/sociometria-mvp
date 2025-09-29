@@ -1,4 +1,4 @@
-import { Home, Users, Building2, FileText, Network, BarChart3 } from "lucide-react";
+import { Home, Users, Building2, FileText, ClipboardList, Network, BarChart3 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -33,6 +33,11 @@ const menuItems = [
     titleKey: "navigation.tests",
     url: "/testes",
     icon: FileText,
+  },
+  {
+    titleKey: "navigation.assessments",
+    url: "/avaliacoes",
+    icon: ClipboardList,
   },
   {
     titleKey: "navigation.sociometry",

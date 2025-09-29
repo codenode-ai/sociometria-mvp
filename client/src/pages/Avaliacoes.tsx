@@ -2,11 +2,16 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Archive,
+  ArrowDown,
+  ArrowUp,
   Clock,
   Copy,
+  GripVertical,
   Languages,
   Link as LinkIcon,
   ListChecks,
+  MoreHorizontal,
+  Pencil,
   Plus,
   RefreshCcw,
   Search,
@@ -18,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -39,12 +45,20 @@ import { cn, slugify } from "@/lib/utils";
 import type {
   Assessment,
   AssessmentAssignment,
+  AssessmentAssignmentStatus,
   AssessmentLink,
   PsychologicalTest,
   SupportedLanguage,
 } from "@shared/schema";
 
 const languageOptions: SupportedLanguage[] = ["pt", "en", "es"];
+const QUICK_RENEW_DAYS = 30;
+const assignmentStatusValues: AssessmentAssignmentStatus[] = [
+  "pending",
+  "in_progress",
+  "paused",
+  "completed",
+];
 
 const normalizeText = (value: string) =>
   value
@@ -76,6 +90,15 @@ type AssignmentPayload = {
   linkId: string;
 };
 
+type UpdateAssessmentPayload = {
+  name: string;
+  description?: string;
+  defaultLanguage: SupportedLanguage;
+  testIds: string[];
+  tags: string[];
+  estimatedDurationMinutes?: number;
+};
+
 export default function Avaliacoes() {
   const { t, i18n } = useTranslation();
   const { toast } = useToast();
@@ -86,9 +109,14 @@ export default function Avaliacoes() {
     assignments,
     createAssessment,
     duplicateAssessment,
+    updateAssessmentDetails,
     updateAssessmentStatus,
     generateLink,
+    renewLink,
+    markLinkExpired,
+    regenerateLink,
     addAssignment,
+    updateAssignmentDetails,
     removeLink,
     removeAssignment,
   } = useAssessmentsData();
@@ -96,6 +124,7 @@ export default function Avaliacoes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [assignmentStatusFilter, setAssignmentStatusFilter] = useState<AssessmentAssignmentStatus | "all">("all");
 
   const testsById = useMemo(() => new Map(tests.map((test) => [test.id, test])), [tests]);
 
@@ -163,11 +192,37 @@ export default function Avaliacoes() {
     if (!selectedAssessment) {
       return [] as AssessmentAssignment[];
     }
-
     return assignments
       .filter((assignment) => assignment.assessmentId === selectedAssessment.id)
       .sort((a, b) => (b.lastActivityAt?.getTime() ?? 0) - (a.lastActivityAt?.getTime() ?? 0));
   }, [assignments, selectedAssessment]);
+
+  const assignmentStatusOptions = useMemo(
+    () =>
+      assignmentStatusValues.map((status) => ({
+        value: status,
+        label: t(`assessments.assignments.status.${status}`),
+      })),
+    [t],
+  );
+
+  const filteredAssignments = useMemo(() => {
+    if (assignmentStatusFilter === "all") {
+      return selectedAssignments;
+    }
+    return selectedAssignments.filter((assignment) => assignment.status === assignmentStatusFilter);
+  }, [assignmentStatusFilter, selectedAssignments]);
+
+  const formatRemainingTime = useCallback(
+    (value?: number) => {
+      if (typeof value !== "number") {
+        return "-";
+      }
+      const minutes = Math.max(0, Math.ceil(value / (60 * 1000)));
+      return t("assessments.assignments.remainingMinutes", { minutes });
+    },
+    [t],
+  );
 
   const formatDate = useMemo(
     () => new Intl.DateTimeFormat(i18n.language ?? "pt", { dateStyle: "medium" }),
@@ -213,6 +268,17 @@ export default function Avaliacoes() {
     [duplicateAssessment, t, toast],
   );
 
+  const handleUpdateAssessment = useCallback(
+    (assessmentId: string, payload: UpdateAssessmentPayload) => {
+      const updated = updateAssessmentDetails(assessmentId, payload);
+      if (updated) {
+        setSelectedId(updated.id);
+        toast({ description: t("assessments.toasts.updated") });
+      }
+    },
+    [setSelectedId, t, toast, updateAssessmentDetails],
+  );
+
   const handleCopyLink = useCallback(
     async (value: string) => {
       if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -226,6 +292,27 @@ export default function Avaliacoes() {
     },
     [t, toast],
   );
+
+  const handleRenewLink = useCallback((linkId: string, days: number = QUICK_RENEW_DAYS) => {
+    const updated = renewLink({ linkId, days });
+    if (updated) {
+      toast({ description: t("assessments.toasts.linkRenewed") });
+    }
+  }, [renewLink, t, toast]);
+
+  const handleExpireLink = useCallback((linkId: string) => {
+    const updated = markLinkExpired(linkId);
+    if (updated) {
+      toast({ description: t("assessments.toasts.linkExpired") });
+    }
+  }, [markLinkExpired, t, toast]);
+
+  const handleRegenerateLink = useCallback((linkId: string) => {
+    const updated = regenerateLink(linkId);
+    if (updated) {
+      toast({ description: t("assessments.toasts.linkRegenerated") });
+    }
+  }, [regenerateLink, t, toast]);
 
   const handleGenerateLink = useCallback(
     (assessmentId: string, payload: GenerateLinkPayload) => {
@@ -251,6 +338,33 @@ export default function Avaliacoes() {
       toast({ description: t("assessments.toasts.assignmentCreated") });
     },
     [addAssignment, t, toast],
+  );
+
+  const handleAssignmentStatusChange = useCallback(
+    (assignmentId: string, status: AssessmentAssignmentStatus) => {
+      updateAssignmentDetails({ assignmentId, status });
+      toast({ description: t("assessments.toasts.assignmentUpdated") });
+    },
+    [t, toast, updateAssignmentDetails],
+  );
+
+  const handleAssignmentLanguageChange = useCallback(
+    (assignmentId: string, language: SupportedLanguage) => {
+      updateAssignmentDetails({ assignmentId, language });
+      toast({ description: t("assessments.toasts.assignmentUpdated") });
+    },
+    [t, toast, updateAssignmentDetails],
+  );
+
+  const handleAssignmentProgressSave = useCallback(
+    (assignmentId: string, percentage: number) => {
+      if (!Number.isFinite(percentage)) {
+        return;
+      }
+      updateAssignmentDetails({ assignmentId, progressPercentage: percentage });
+      toast({ description: t("assessments.toasts.assignmentUpdated") });
+    },
+    [t, toast, updateAssignmentDetails],
   );
 
   const handleArchive = useCallback(
@@ -398,6 +512,11 @@ export default function Avaliacoes() {
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    <EditAssessmentDialog
+                      assessment={selectedAssessment}
+                      tests={tests}
+                      onSave={(payload) => handleUpdateAssessment(selectedAssessment.id, payload)}
+                    />
                     <DuplicateAssessmentDialog
                       assessment={selectedAssessment}
                       onDuplicate={(suffix) => handleDuplicateAssessment(selectedAssessment.id, suffix)}
@@ -531,53 +650,77 @@ export default function Avaliacoes() {
                                 <TableHead>{t("assessments.links.columns.url")}</TableHead>
                                 <TableHead>{t("assessments.links.columns.createdAt")}</TableHead>
                                 <TableHead>{t("assessments.links.columns.expiresAt")}</TableHead>
-                                <TableHead className="w-24 text-right">
+                                <TableHead>{t("assessments.links.columns.status")}</TableHead>
+                                <TableHead className="w-28 text-right">
                                   {t("assessments.links.columns.actions")}
                                 </TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {selectedLinks.map((link) => (
-                                <TableRow key={link.id}>
-                                  <TableCell className="font-medium">{link.code}</TableCell>
-                                  <TableCell>
-                                    {t(`tests.languages.${link.language}`, {
-                                      defaultValue: link.language.toUpperCase(),
-                                    })}
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <LinkIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                                      <span className="truncate text-sm" title={link.url}>
-                                        {link.url}
-                                      </span>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>{formatDate.format(link.createdAt)}</TableCell>
-                                  <TableCell>
-                                    {link.expiresAt ? formatDate.format(link.expiresAt) : "-"}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <div className="flex justify-end gap-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleCopyLink(link.url)}
-                                        aria-label={t("assessments.links.copy") ?? ""}
-                                      >
-                                        <Copy className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => removeLink(link.id)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
+                              {selectedLinks.map((link) => {
+                                const isExpired = Boolean(
+                                  link.expiresAt && link.expiresAt.getTime() < Date.now(),
+                                );
+                                return (
+                                  <TableRow key={link.id}>
+                                    <TableCell className="font-medium">{link.code}</TableCell>
+                                    <TableCell>
+                                      {t(`tests.languages.${link.language}`, {
+                                        defaultValue: link.language.toUpperCase(),
+                                      })}
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex items-center gap-2">
+                                        <LinkIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="truncate text-sm" title={link.url}>
+                                          {link.url}
+                                        </span>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>{formatDate.format(link.createdAt)}</TableCell>
+                                    <TableCell>
+                                      {link.expiresAt ? formatDate.format(link.expiresAt) : "-"}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant={isExpired ? "destructive" : "outline"}>
+                                        {isExpired
+                                          ? t("assessments.links.statusBadge.expired")
+                                          : t("assessments.links.statusBadge.active")}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex justify-end gap-1">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleCopyLink(link.url)}
+                                          aria-label={t("assessments.links.copy") ?? ""}
+                                        >
+                                          <Copy className="h-4 w-4" />
+                                        </Button>
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              aria-label={t("assessments.links.actionsMenu") ?? ""}
+                                            >
+                                              <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => handleRenewLink(link.id)}>{t("assessments.links.actions.renew", { days: QUICK_RENEW_DAYS })}</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleRegenerateLink(link.id)}>{t("assessments.links.actions.regenerate")}</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleExpireLink(link.id)}>{t("assessments.links.actions.expire")}</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onClick={() => removeLink(link.id)}>{t("assessments.links.actions.remove")}</DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
                             </TableBody>
                           </Table>
                         </div>
@@ -938,6 +1081,270 @@ function DuplicateAssessmentDialog({ assessment, onDuplicate }: DuplicateAssessm
     </Dialog>
   );
 }
+interface EditAssessmentDialogProps {
+  assessment: Assessment;
+  tests: PsychologicalTest[];
+  onSave: (payload: UpdateAssessmentPayload) => void;
+}
+
+function EditAssessmentDialog({ assessment, tests, onSave }: EditAssessmentDialogProps) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(assessment.name);
+  const [description, setDescription] = useState(assessment.description ?? "");
+  const [defaultLanguage, setDefaultLanguage] = useState<SupportedLanguage>(assessment.defaultLanguage);
+  const [tags, setTags] = useState((assessment.metadata?.tags ?? []).join(", "));
+  const [estimatedDuration, setEstimatedDuration] = useState(() =>
+    assessment.metadata?.estimatedDurationMinutes
+      ? String(assessment.metadata.estimatedDurationMinutes)
+      : "",
+  );
+  const initialSelected = useMemo(
+    () => assessment.tests.slice().sort((a, b) => a.order - b.order).map((item) => item.testId),
+    [assessment.tests],
+  );
+  const [selectedTests, setSelectedTests] = useState<string[]>(initialSelected);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    setName(assessment.name);
+    setDescription(assessment.description ?? "");
+    setDefaultLanguage(assessment.defaultLanguage);
+    setTags((assessment.metadata?.tags ?? []).join(", "));
+    setEstimatedDuration(
+      assessment.metadata?.estimatedDurationMinutes
+        ? String(assessment.metadata.estimatedDurationMinutes)
+        : "",
+    );
+    setSelectedTests(initialSelected);
+  }, [assessment, initialSelected, open]);
+
+  const availableTests = useMemo(
+    () => tests.filter((test) => !selectedTests.includes(test.id)),
+    [selectedTests, tests],
+  );
+
+  const moveTest = (testId: string, direction: -1 | 1) => {
+    setSelectedTests((prev) => {
+      const index = prev.indexOf(testId);
+      if (index === -1) {
+        return prev;
+      }
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= prev.length) {
+        return prev;
+      }
+      const copy = [...prev];
+      const [item] = copy.splice(index, 1);
+      copy.splice(nextIndex, 0, item);
+      return copy;
+    });
+  };
+
+  const removeTest = (testId: string) => {
+    setSelectedTests((prev) => prev.filter((id) => id !== testId));
+  };
+
+  const addTest = (testId: string) => {
+    setSelectedTests((prev) => (prev.includes(testId) ? prev : [...prev, testId]));
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      toast({ variant: "destructive", description: t("validation.required") });
+      return;
+    }
+    if (selectedTests.length === 0) {
+      toast({ variant: "destructive", description: t("assessments.validation.testsRequired") });
+      return;
+    }
+    const parsedDuration = Number(estimatedDuration);
+    const duration = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : undefined;
+    onSave({
+      name: trimmedName,
+      description: description.trim() || undefined,
+      defaultLanguage,
+      testIds: selectedTests,
+      tags: tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+      estimatedDurationMinutes: duration,
+    });
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <Pencil className="mr-2 h-4 w-4" />
+          {t("assessments.configureButton")}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{t("assessments.modals.edit.title")}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="edit-assessment-name">{t("assessments.modals.edit.nameLabel")}</Label>
+            <Input
+              id="edit-assessment-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-assessment-description">{t("assessments.modals.edit.descriptionLabel")}</Label>
+            <Textarea
+              id="edit-assessment-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t("assessments.modals.edit.languageLabel")}</Label>
+              <Select value={defaultLanguage} onValueChange={(value: SupportedLanguage) => setDefaultLanguage(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {languageOptions.map((lang) => (
+                    <SelectItem key={lang} value={lang}>
+                      {t(`tests.languages.${lang}`, { defaultValue: lang.toUpperCase() })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-assessment-duration">
+                {t("assessments.modals.edit.estimatedDurationLabel")}
+              </Label>
+              <Input
+                id="edit-assessment-duration"
+                type="number"
+                min={0}
+                value={estimatedDuration}
+                onChange={(event) => setEstimatedDuration(event.target.value)}
+              />
+            </div>
+          </div>
+          <div className="space-y-3">
+            <Label htmlFor="edit-assessment-tags">{t("assessments.modals.edit.tagsLabel")}</Label>
+            <Input
+              id="edit-assessment-tags"
+              value={tags}
+              onChange={(event) => setTags(event.target.value)}
+              placeholder={t("assessments.modals.create.tagsPlaceholder") ?? ""}
+            />
+            <p className="text-xs text-muted-foreground">{t("assessments.modals.edit.tagsHint")}</p>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="space-y-3">
+              <Label>{t("assessments.modals.edit.selectedTests")}</Label>
+              {selectedTests.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t("assessments.modals.edit.noTestsSelected")}</p>
+              ) : (
+                <div className="space-y-2">
+                  {selectedTests.map((testId, index) => {
+                    const test = tests.find((item) => item.id === testId);
+                    if (!test) {
+                      return null;
+                    }
+                    return (
+                      <div
+                        key={test.id}
+                        className="flex items-center justify-between rounded-md border p-3"
+                      >
+                        <div className="flex items-start gap-3">
+                          <GripVertical className="mt-1 h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium leading-tight">{test.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {t("assessments.modals.edit.orderLabel", { index: index + 1 })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => moveTest(test.id, -1)}
+                            disabled={index === 0}
+                            aria-label={t("assessments.modals.edit.moveUp") ?? ""}
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => moveTest(test.id, 1)}
+                            disabled={index === selectedTests.length - 1}
+                            aria-label={t("assessments.modals.edit.moveDown") ?? ""}
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeTest(test.id)}
+                            aria-label={t("assessments.modals.edit.remove") ?? ""}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="space-y-3">
+              <Label>{t("assessments.modals.edit.availableTests")}</Label>
+              {availableTests.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t("assessments.modals.edit.noAvailableTests")}</p>
+              ) : (
+                <div className="space-y-2">
+                  {availableTests.map((test) => (
+                    <div key={test.id} className="flex items-center justify-between rounded-md border p-3">
+                      <div>
+                        <p className="text-sm font-medium leading-tight">{test.title}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{test.description}</p>
+                      </div>
+                      <Button type="button" size="sm" variant="outline" onClick={() => addTest(test.id)}>
+                        {t("assessments.modals.edit.addTest")}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              {t("assessments.modals.create.cancel")}
+            </Button>
+            <Button type="submit">{t("assessments.modals.edit.submit")}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 interface GenerateLinkDialogProps {
   assessment: Assessment;
   onGenerate: (payload: GenerateLinkPayload) => void;
@@ -1122,4 +1529,3 @@ function AddAssignmentDialog({ availableLinks, defaultLanguage, onAdd }: AddAssi
     </Dialog>
   );
 }
-

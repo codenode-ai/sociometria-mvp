@@ -113,6 +113,15 @@ type GenerateLinkInput = {
   baseUrl?: string;
 };
 
+type UpdateAssessmentInput = {
+  name: string;
+  description?: string;
+  defaultLanguage: SupportedLanguage;
+  testIds: string[];
+  tags?: string[];
+  estimatedDurationMinutes?: number;
+};
+
 type AddAssignmentInput = {
   assessmentId: string;
   assigneeId: string;
@@ -125,6 +134,25 @@ type UpdateAssignmentStatusInput = {
   assignmentId: string;
   status: AssessmentAssignmentStatus;
   progressPercentage?: number;
+};
+
+type UpdateLinkInput = {
+  linkId: string;
+  language?: SupportedLanguage;
+  expiresAt?: Date | null;
+};
+
+type RenewLinkInput = {
+  linkId: string;
+  days: number;
+};
+
+type UpdateAssignmentDetailsInput = {
+  assignmentId: string;
+  status?: AssessmentAssignmentStatus;
+  progressPercentage?: number;
+  language?: SupportedLanguage;
+  remainingTimeMs?: number | null;
 };
 
 export function useAssessmentsData() {
@@ -240,6 +268,159 @@ export function useAssessmentsData() {
     },
     [getAssessment],
   );
+
+  const updateAssessmentDetails = useCallback((
+    assessmentId: string,
+    input: UpdateAssessmentInput,
+  ) => {
+    const name = input.name.trim();
+    if (!name || input.testIds.length === 0) {
+      return null;
+    }
+    const cleanedTags = input.tags
+      ?.map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0);
+    let updatedAssessment: Assessment | null = null;
+    setAssessments((prev) =>
+      prev.map((assessment) => {
+        if (assessment.id !== assessmentId) {
+          return assessment;
+        }
+        const now = new Date();
+        const testsRefs: AssessmentTestRef[] = input.testIds.map((testId, index) => {
+          const related = tests.find((test) => test.id === testId);
+          return {
+            testId,
+            testVersion: related?.version ?? 1,
+            order: index + 1,
+          };
+        });
+        const metadata = {
+          estimatedDurationMinutes: input.estimatedDurationMinutes,
+          tags: cleanedTags && cleanedTags.length > 0 ? cleanedTags : undefined,
+        };
+        const hasMetadata = Boolean(
+          metadata.estimatedDurationMinutes ||
+            (metadata.tags && metadata.tags.length > 0),
+        );
+        updatedAssessment = {
+          ...assessment,
+          name,
+          description: input.description?.trim() || undefined,
+          defaultLanguage: input.defaultLanguage,
+          tests: testsRefs,
+          updatedAt: now,
+          metadata: hasMetadata ? metadata : undefined,
+        };
+        return updatedAssessment;
+      }),
+    );
+    return updatedAssessment;
+  }, [tests]);
+
+  const updateLinkDetails = useCallback((input: UpdateLinkInput) => {
+    let updatedLink: AssessmentLink | null = null;
+    setLinks((prev) =>
+      prev.map((link) => {
+        if (link.id !== input.linkId) {
+          return link;
+        }
+        updatedLink = {
+          ...link,
+          language: input.language ?? link.language,
+          expiresAt:
+            input.expiresAt === null
+              ? undefined
+              : input.expiresAt ?? link.expiresAt,
+        };
+        return updatedLink;
+      }),
+    );
+    return updatedLink;
+  }, []);
+
+  const renewLink = useCallback((input: RenewLinkInput) => {
+    const expiresAt = new Date(Date.now() + input.days * 24 * 60 * 60 * 1000);
+    return updateLinkDetails({ linkId: input.linkId, expiresAt });
+  }, [updateLinkDetails]);
+
+  const markLinkExpired = useCallback((linkId: string) => {
+    let updatedLink: AssessmentLink | null = null;
+    const now = new Date();
+    setLinks((prev) =>
+      prev.map((link) => {
+        if (link.id !== linkId) {
+          return link;
+        }
+        updatedLink = {
+          ...link,
+          expiresAt: now,
+        };
+        return updatedLink;
+      }),
+    );
+    return updatedLink;
+  }, []);
+
+  const regenerateLink = useCallback((linkId: string) => {
+    let updatedLink: AssessmentLink | null = null;
+    setLinks((prev) =>
+      prev.map((link) => {
+        if (link.id !== linkId) {
+          return link;
+        }
+        const now = new Date();
+        const baseUrlIndex = link.url.lastIndexOf("/");
+        const baseUrl = baseUrlIndex > -1 ? link.url.slice(0, baseUrlIndex) : link.url;
+        const code = `${link.assessmentId}-${Math.random().toString(36).slice(2, 6)}`;
+        updatedLink = {
+          ...link,
+          code,
+          url: `${baseUrl}/${code}`,
+          createdAt: now,
+        };
+        return updatedLink;
+      }),
+    );
+    return updatedLink;
+  }, []);
+
+  const updateAssignmentDetails = useCallback((input: UpdateAssignmentDetailsInput) => {
+    let updatedAssignment: AssessmentAssignment | null = null;
+    setAssignments((prev) =>
+      prev.map((assignment) => {
+        if (assignment.id !== input.assignmentId) {
+          return assignment;
+        }
+        const now = new Date();
+        const nextStatus = input.status ?? assignment.status;
+        const nextPercentage =
+          typeof input.progressPercentage === "number"
+            ? Math.min(100, Math.max(0, Math.round(input.progressPercentage)))
+            : assignment.progress.percentage;
+        const nextRemaining =
+          typeof input.remainingTimeMs === "number" && !Number.isNaN(input.remainingTimeMs)
+            ? Math.max(0, Math.floor(input.remainingTimeMs))
+            : assignment.progress.remainingTimeMs;
+        updatedAssignment = {
+          ...assignment,
+          status: nextStatus,
+          language: input.language ?? assignment.language,
+          progress: {
+            ...assignment.progress,
+            percentage: nextPercentage,
+            remainingTimeMs: nextRemaining,
+          },
+          startedAt:
+            assignment.startedAt ?? (nextStatus === "in_progress" ? now : assignment.startedAt),
+          completedAt: nextStatus === "completed" ? assignment.completedAt ?? now : assignment.completedAt,
+          lastActivityAt: now,
+        };
+        return updatedAssignment;
+      }),
+    );
+    return updatedAssignment;
+  }, []);
 
   const updateAssessmentStatus = useCallback(
     (assessmentId: string, status: Assessment["status"]) => {
@@ -357,6 +538,12 @@ export function useAssessmentsData() {
     sessions,
     createAssessment,
     duplicateAssessment,
+    updateAssessmentDetails,
+    updateLinkDetails,
+    renewLink,
+    markLinkExpired,
+    regenerateLink,
+    updateAssignmentDetails,
     updateAssessmentStatus,
     generateLink,
     addAssignment,
