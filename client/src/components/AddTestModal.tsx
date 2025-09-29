@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { InsertTest, SupportedLanguage } from "@shared/schema";
-
-const LANGUAGE_OPTIONS: Array<{ value: SupportedLanguage; labelKey: string }> = [
-  { value: "pt", labelKey: "tests.languages.pt" },
-  { value: "en", labelKey: "tests.languages.en" },
-  { value: "es", labelKey: "tests.languages.es" },
-];
+import { LANGUAGE_OPTIONS } from "@/lib/constants";
 
 interface AddTestModalProps {
   onAdd: (test: InsertTest) => void;
@@ -123,3 +118,4 @@ export default function AddTestModal({ onAdd, trigger }: AddTestModalProps) {
     </Dialog>
   );
 }
+

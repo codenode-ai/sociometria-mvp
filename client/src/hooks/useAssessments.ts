@@ -196,14 +196,16 @@ export function useAssessmentsData() {
         ?.map((tag) => tag.trim())
         .filter((tag) => tag.length > 0);
 
-      const metadata = {
-        estimatedDurationMinutes: input.estimatedDurationMinutes,
-        tags: cleanedTags,
-      } as Assessment["metadata"];
+      const estimatedDurationMinutes = input.estimatedDurationMinutes;
+      const hasMetadata =
+        typeof estimatedDurationMinutes === "number" || (cleanedTags && cleanedTags.length > 0);
 
-      const hasMetadata = Boolean(
-        metadata.estimatedDurationMinutes || (metadata.tags && metadata.tags.length > 0),
-      );
+      const metadata = hasMetadata
+        ? ({
+            estimatedDurationMinutes,
+            tags: cleanedTags,
+          } as Assessment["metadata"])
+        : undefined;
 
       const newAssessment: Assessment = {
         id,
@@ -272,7 +274,7 @@ export function useAssessmentsData() {
   const updateAssessmentDetails = useCallback((
     assessmentId: string,
     input: UpdateAssessmentInput,
-  ) => {
+  ): Assessment | null => {
     const name = input.name.trim();
     if (!name || input.testIds.length === 0) {
       return null;

@@ -519,7 +519,7 @@ export default function AssessmentPortal() {
                       onValueChange={handleAnswerChange}
                       className="grid gap-3 sm:grid-cols-5"
                     >
-                      {Object.entries(currentQuestion.scaleLabels)
+                      {(Object.entries(currentQuestion.labels ?? {}) as Array<[string, string]>)
                         .sort(([a], [b]) => Number(a) - Number(b))
                         .map(([value, label]) => (
                           <Label
