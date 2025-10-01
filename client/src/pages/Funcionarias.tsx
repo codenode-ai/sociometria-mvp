@@ -1,4 +1,4 @@
-ï»¿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,7 @@ const employeesData: Employee[] = [
   },
   {
     id: "4",
-    name: "JÃºlia Costa",
+    name: "Júlia Costa",
     role: "help",
     status: "active",
     traits: ["meticulous", "responsible", "analytical"],
@@ -53,7 +53,7 @@ const employeesData: Employee[] = [
   },
   {
     id: "6",
-    name: "LÃ­via Rocha",
+    name: "Lívia Rocha",
     role: "support",
     status: "active",
     traits: ["trustworthy", "patient", "collaborative"],
@@ -250,7 +250,7 @@ export default function Funcionarias() {
                             asChild
                             data-testid={`button-evaluate-employee-${employee.id}`}
                           >
-                            <Link href="/testes">{t("employees.evaluateNow")}</Link>
+                            <Link href="/avaliacoes">{t("employees.evaluateNow")}</Link>
                           </Button>
                         </div>
                       )}
