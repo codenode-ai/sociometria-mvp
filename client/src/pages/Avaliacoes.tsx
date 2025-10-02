@@ -411,7 +411,7 @@ export default function Avaliacoes() {
     [t, toast, updateAssessmentStatus],
   );
   return (
-    <div className="flex flex-col gap-6">
+    <div className="p-6 space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t("assessments.title")}</h1>
@@ -461,7 +461,7 @@ export default function Avaliacoes() {
                         isActive ? "border-primary bg-primary/10" : "border-transparent hover:bg-muted",
                       )}
                     >
-                      <div className="flex items-start justify-between gap-2 px-4 py-3">
+                      <div className="flex items-start justify-between gap-2 px-4 py-2">
                         <div>
                           <p className="font-medium leading-tight">{assessment.name}</p>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -571,12 +571,14 @@ export default function Avaliacoes() {
               </CardHeader>
               <CardContent className="flex-1 overflow-hidden p-0">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="flex h-full flex-col">
-                  <TabsList className="grid w-full grid-cols-4 rounded-none border-b bg-card">
-                    <TabsTrigger value="overview">{t("assessments.tabs.overview")}</TabsTrigger>
-                    <TabsTrigger value="links">{t("assessments.tabs.links")}</TabsTrigger>
-                    <TabsTrigger value="assignments">{t("assessments.tabs.assignments")}</TabsTrigger>
-                    <TabsTrigger value="history">{t("assessments.tabs.history")}</TabsTrigger>
-                  </TabsList>
+                  <div className="border-b bg-card px-4 py-2">
+                    <TabsList className="grid w-full grid-cols-4 gap-0 rounded-none bg-transparent p-0">
+                      <TabsTrigger value="overview">{t("assessments.tabs.overview")}</TabsTrigger>
+                      <TabsTrigger value="links">{t("assessments.tabs.links")}</TabsTrigger>
+                      <TabsTrigger value="assignments">{t("assessments.tabs.assignments")}</TabsTrigger>
+                      <TabsTrigger value="history">{t("assessments.tabs.history")}</TabsTrigger>
+                    </TabsList>
+                  </div>
                   <TabsContent value="overview" className="flex-1 overflow-y-auto">
                     <div className="space-y-6 p-6">
                       <section className="space-y-2">
