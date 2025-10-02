@@ -6,6 +6,7 @@ import {
   ArrowUp,
   Clock,
   Copy,
+  Eye,
   GripVertical,
   Languages,
   Link as LinkIcon,
@@ -29,6 +30,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -47,6 +49,7 @@ import type {
   AssessmentAssignment,
   AssessmentAssignmentStatus,
   AssessmentLink,
+  AssessmentTestRef,
   PsychologicalTest,
   SupportedLanguage,
 } from "@shared/schema";
@@ -124,6 +127,7 @@ export default function Avaliacoes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [assignmentStatusFilter, setAssignmentStatusFilter] = useState<AssessmentAssignmentStatus | "all">("all");
 
   const testsById = useMemo(() => new Map(tests.map((test) => [test.id, test])), [tests]);
@@ -196,6 +200,22 @@ export default function Avaliacoes() {
       .filter((assignment) => assignment.assessmentId === selectedAssessment.id)
       .sort((a, b) => (b.lastActivityAt?.getTime() ?? 0) - (a.lastActivityAt?.getTime() ?? 0));
   }, [assignments, selectedAssessment]);
+
+  const previewTests = useMemo(() => {
+    if (!selectedAssessment) {
+      return [] as { ref: AssessmentTestRef; test: PsychologicalTest }[];
+    }
+
+    return selectedAssessment.tests
+      .map((assessmentTest) => {
+        const test = testsById.get(assessmentTest.testId);
+        if (!test) {
+          return null;
+        }
+        return { ref: assessmentTest, test };
+      })
+      .filter((value): value is { ref: AssessmentTestRef; test: PsychologicalTest } => Boolean(value));
+  }, [selectedAssessment, testsById]);
 
   const assignmentStatusOptions = useMemo(
     () =>
@@ -391,7 +411,7 @@ export default function Avaliacoes() {
     [t, toast, updateAssessmentStatus],
   );
   return (
-    <div className="flex flex-col gap-6">
+    <div className="p-6 space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t("assessments.title")}</h1>
@@ -441,7 +461,7 @@ export default function Avaliacoes() {
                         isActive ? "border-primary bg-primary/10" : "border-transparent hover:bg-muted",
                       )}
                     >
-                      <div className="flex items-start justify-between gap-2 px-4 py-3">
+                      <div className="flex items-start justify-between gap-2 px-4 py-2">
                         <div>
                           <p className="font-medium leading-tight">{assessment.name}</p>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -493,8 +513,9 @@ export default function Avaliacoes() {
 
         <div className="flex min-h-[620px] flex-col">
           {selectedAssessment ? (
-            <Card className="flex h-full flex-col">
-              <CardHeader className="flex flex-col gap-3 border-b pb-4">
+            <>
+              <Card className="flex h-full flex-col">
+                <CardHeader className="flex flex-col gap-3 border-b pb-4">
                 <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                   <div>
                     <CardTitle className="text-xl font-semibold leading-tight">
@@ -512,6 +533,14 @@ export default function Avaliacoes() {
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsPreviewOpen(true)}
+                      data-testid="button-preview-assessment"
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      {t("assessments.previewButton", { defaultValue: "Visualizar" })}
+                    </Button>
                     <EditAssessmentDialog
                       assessment={selectedAssessment}
                       tests={tests}
@@ -542,12 +571,14 @@ export default function Avaliacoes() {
               </CardHeader>
               <CardContent className="flex-1 overflow-hidden p-0">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="flex h-full flex-col">
-                  <TabsList className="grid w-full grid-cols-4 rounded-none border-b bg-card">
-                    <TabsTrigger value="overview">{t("assessments.tabs.overview")}</TabsTrigger>
-                    <TabsTrigger value="links">{t("assessments.tabs.links")}</TabsTrigger>
-                    <TabsTrigger value="assignments">{t("assessments.tabs.assignments")}</TabsTrigger>
-                    <TabsTrigger value="history">{t("assessments.tabs.history")}</TabsTrigger>
-                  </TabsList>
+                  <div className="border-b bg-card px-4 py-2">
+                    <TabsList className="grid w-full grid-cols-4 gap-0 rounded-none bg-transparent p-0">
+                      <TabsTrigger value="overview">{t("assessments.tabs.overview")}</TabsTrigger>
+                      <TabsTrigger value="links">{t("assessments.tabs.links")}</TabsTrigger>
+                      <TabsTrigger value="assignments">{t("assessments.tabs.assignments")}</TabsTrigger>
+                      <TabsTrigger value="history">{t("assessments.tabs.history")}</TabsTrigger>
+                    </TabsList>
+                  </div>
                   <TabsContent value="overview" className="flex-1 overflow-y-auto">
                     <div className="space-y-6 p-6">
                       <section className="space-y-2">
@@ -826,6 +857,66 @@ export default function Avaliacoes() {
                 </Tabs>
               </CardContent>
             </Card>
+              <Dialog
+                open={isPreviewOpen}
+                onOpenChange={setIsPreviewOpen}
+              >
+                <DialogContent className="max-w-4xl" data-testid="dialog-assessment-preview">
+                  <DialogHeader>
+                    <DialogTitle>{t("assessments.preview.title", { defaultValue: "Visualizando avaliacao" })}</DialogTitle>
+                    <DialogDescription>
+                      {t("assessments.preview.subtitle", { defaultValue: "Revise os testes antes de enviar para a colaboradora." })}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-1">
+                    {previewTests.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        {t("assessments.preview.empty", { defaultValue: "Nenhum teste disponivel para pre-visualizacao." })}
+                      </p>
+                    ) : (
+                      previewTests.map(({ ref, test }) => (
+                        <div key={`${ref.testId}-${ref.testVersion}`} className="space-y-3 rounded-lg border p-4">
+                          <div>
+                            <h3 className="text-lg font-semibold leading-tight">{test.title}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {t("assessments.preview.version", { defaultValue: "Versao {{version}}", version: ref.testVersion })}
+                            </p>
+                          </div>
+                          {test.description ? (
+                            <p className="text-sm text-muted-foreground">{test.description}</p>
+                          ) : null}
+                          <div className="space-y-3">
+                            {test.questions.map((question, index) => (
+                              <div key={question.id} className="rounded-md border p-3">
+                                <p className="text-sm font-medium leading-snug">
+                                  {t("assessments.preview.questionLabel", { defaultValue: "Pergunta {{index}}", index: index + 1 })}{' '}
+                                  <span className="font-normal text-muted-foreground">{question.prompt}</span>
+                                </p>
+                                <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                  {(Object.entries(question.labels ?? {}) as Array<[string, string]>)
+                                    .sort(([a], [b]) => Number(a) - Number(b))
+                                    .map(([value, label]) => (
+                                      <span key={value} className="inline-flex items-center gap-1 rounded-full border px-2 py-1">
+                                        <span className="font-semibold">{value}</span>
+                                        <span>{label}</span>
+                                      </span>
+                                    ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>
+                      {t("actions.cancel")}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </>
           ) : (
             <Card className="flex h-full flex-col items-center justify-center text-center text-sm text-muted-foreground">
               <CardContent>{t("assessments.links.empty")}</CardContent>
