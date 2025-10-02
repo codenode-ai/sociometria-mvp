@@ -1,4 +1,4 @@
-﻿import { useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -79,7 +79,7 @@ export default function EmployeeCard({ employee, onDelete, onEdit, className }: 
                 {t("employees.profilePending")}
               </p>
               <Button variant="outline" size="sm" asChild data-testid={`button-evaluate-employee-${employee.id}`}>
-                <Link href="/testes">{t("employees.evaluateNow")}</Link>
+                <Link href="/avaliacoes">{t("employees.evaluateNow")}</Link>
               </Button>
             </div>
           )}

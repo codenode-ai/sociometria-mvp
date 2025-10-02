@@ -8,11 +8,13 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
+import { TestsProvider } from "@/hooks/useTests";
 
 import Dashboard from "@/pages/Dashboard";
 import Funcionarias from "@/pages/Funcionarias";
 import Casas from "@/pages/Casas";
 import Testes from "@/pages/Testes";
+import TestEditor from "@/pages/TestEditor";
 import Avaliacoes from "@/pages/Avaliacoes";
 import AssessmentPortal from "@/pages/AssessmentPortal";
 import Sociometria from "@/pages/Sociometria";
@@ -25,6 +27,8 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/funcionarias" component={Funcionarias} />
       <Route path="/casas" component={Casas} />
+      <Route path="/testes/novo" component={TestEditor} />
+      <Route path="/testes/:id/editar" component={TestEditor} />
       <Route path="/testes" component={Testes} />
       <Route path="/avaliacoes/:code" component={AssessmentPortal} />
       <Route path="/avaliacoes" component={Avaliacoes} />
@@ -40,36 +44,38 @@ function App() {
   const sidebarStyle = {
     "--sidebar-width": "20rem",
     "--sidebar-width-icon": "4rem",
-  } satisfies CSSProperties;
+  } as CSSProperties;
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        {isPortalRoute ? (
-          <Router />
-        ) : (
-          <SidebarProvider style={sidebarStyle}>
-            <div className="flex h-screen w-full">
-              <AppSidebar />
-              <div className="flex flex-col flex-1">
-                <header className="flex items-center justify-between p-4 border-b bg-background">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" />
-                  <div className="flex items-center gap-2">
-                    <LanguageToggle />
-                    <ThemeToggle />
-                  </div>
-                </header>
-                <main className="flex-1 overflow-hidden">
-                  <div className="h-full overflow-auto">
-                    <Router />
-                  </div>
-                </main>
+      <TestsProvider>
+        <TooltipProvider>
+          {isPortalRoute ? (
+            <Router />
+          ) : (
+            <SidebarProvider style={sidebarStyle}>
+              <div className="flex h-screen w-full">
+                <AppSidebar />
+                <div className="flex flex-col flex-1">
+                  <header className="flex items-center justify-between p-4 border-b bg-background">
+                    <SidebarTrigger data-testid="button-sidebar-toggle" />
+                    <div className="flex items-center gap-2">
+                      <LanguageToggle />
+                      <ThemeToggle />
+                    </div>
+                  </header>
+                  <main className="flex-1 overflow-hidden">
+                    <div className="h-full overflow-auto">
+                      <Router />
+                    </div>
+                  </main>
+                </div>
               </div>
-            </div>
-          </SidebarProvider>
-        )}
-        <Toaster />
-      </TooltipProvider>
+            </SidebarProvider>
+          )}
+          <Toaster />
+        </TooltipProvider>
+      </TestsProvider>
     </QueryClientProvider>
   );
 }

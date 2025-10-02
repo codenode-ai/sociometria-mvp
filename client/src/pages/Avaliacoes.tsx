@@ -579,8 +579,8 @@ export default function Avaliacoes() {
                                   </p>
                                 </div>
                                 <Badge variant="outline">
-                                  {t(`tests.languages.${test?.defaultLanguage ?? selectedAssessment.defaultLanguage}`, {
-                                    defaultValue: (test?.defaultLanguage ?? selectedAssessment.defaultLanguage).toUpperCase(),
+                                  {t(`tests.languages.${test?.language ?? selectedAssessment.defaultLanguage}`, {
+                                    defaultValue: (test?.language ?? selectedAssessment.defaultLanguage).toUpperCase(),
                                   })}
                                 </Badge>
                               </div>
