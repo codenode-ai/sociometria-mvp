@@ -25,9 +25,9 @@ interface AnswerState {
 }
 
 const introduction = [
-  "O question·rio a seguir ajuda a entender os vÌnculos interpessoais dentro da equipe.",
-  "Escolha as pessoas com quem vocÍ j· trabalhou e que conhece bem.",
-  "Suas respostas s„o confidenciais e servir„o apenas para melhorar alocaÁıes e rotinas.",
+  "O question√°rio a seguir ajuda a entender os v√≠nculos interpessoais dentro da equipe.",
+  "Escolha as pessoas com quem voc√™ j√° trabalhou e que conhece bem.",
+  "Suas respostas s√£o confidenciais e servir√£o apenas para melhorar aloca√ß√µes e rotinas.",
 ];
 
 type SociometryEmployee = SociometryContextValue["employees"][number];
@@ -65,12 +65,12 @@ export default function SociometriaPortal() {
           <CardHeader>
             <div className="flex items-center gap-2 text-destructive">
               <AlertCircle className="h-5 w-5" />
-              <CardTitle>Link n„o encontrado</CardTitle>
+              <CardTitle>Link n√£o encontrado</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-destructive">
-              O link de sociometria informado È inv·lido ou expirou. Solicite um novo convite ao seu gestor.
+              O link de sociometria informado √© inv√°lido ou expirou. Solicite um novo convite ao seu gestor.
             </p>
           </CardContent>
         </Card>
@@ -85,13 +85,13 @@ export default function SociometriaPortal() {
           <CardHeader>
             <div className="flex items-center gap-2 text-primary">
               <BadgeCheck className="h-5 w-5" />
-              <CardTitle>Question·rio concluÌdo</CardTitle>
+              <CardTitle>Question√°rio conclu√≠do</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Obrigado por compartilhar sua percepÁ„o sobre a equipe.</p>
+            <p>Obrigado por compartilhar sua percep√ß√£o sobre a equipe.</p>
             <p>
-              As respostas ajudam a montar duplas mais eficientes, identificar mentores e resolver possÌveis conflitos de forma
+              As respostas ajudam a montar duplas mais eficientes, identificar mentores e resolver poss√≠veis conflitos de forma
               proativa.
             </p>
           </CardContent>
@@ -126,7 +126,7 @@ export default function SociometriaPortal() {
       const current = answers[question.id] ?? [];
       const min = question.minSelections ?? 0;
       if (current.length < min) {
-        nextErrors[question.id] = `Selecione pelo menos ${min} opÁ„o(ıes).`;
+        nextErrors[question.id] = `Selecione pelo menos ${min} op√ß√£o(√µes).`;
         isValid = false;
       } else {
         nextErrors[question.id] = null;
@@ -179,7 +179,7 @@ export default function SociometriaPortal() {
         <CardContent className="space-y-3">
           {availableEmployees.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Ainda n„o h· colegas suficientes cadastrados para responder esta pergunta.
+              Ainda n√£o h√° colegas suficientes cadastrados para responder esta pergunta.
             </p>
           ) : isSingle ? (
             <RadioGroup value={current[0] ?? ""} onValueChange={(value) => handleToggle(question, value)}>
@@ -247,10 +247,10 @@ export default function SociometriaPortal() {
         <CardHeader className="space-y-4">
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">
-              {link.language.toUpperCase()} ∑ {form.title}
+              {link.language.toUpperCase()} ¬∑ {form.title}
             </p>
             <CardTitle className="text-2xl font-semibold">
-              Ol·, {collaboratorName ?? "colaboradora"}
+              Ol√°, {collaboratorName ?? "colaboradora"}
             </CardTitle>
           </div>
           <div className="rounded-md border border-dashed border-muted p-4 text-sm text-muted-foreground">

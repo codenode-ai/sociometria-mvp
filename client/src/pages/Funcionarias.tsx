@@ -168,9 +168,9 @@ export default function Funcionarias() {
     if (!collaborator) {
       toast({
         variant: "destructive",
-        title: t("employees.sociometry.missingCollaboratorTitle", { defaultValue: "Colaboradora n„o integrada" }),
+        title: t("employees.sociometry.missingCollaboratorTitle", { defaultValue: "Colaboradora n√£o integrada" }),
         description: t("employees.sociometry.missingCollaboratorDescription", {
-          defaultValue: "Cadastre a colaboradora na base de sociometria para enviar o question·rio.",
+          defaultValue: "Cadastre a colaboradora na base de sociometria para enviar o question√°rio.",
         }),
       });
       return;

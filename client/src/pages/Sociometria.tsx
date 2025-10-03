@@ -20,7 +20,7 @@ type FilterValue = (typeof FILTER_OPTIONS)[number]["value"];
 const FILTER_LABELS: Record<FilterValue, string> = {
   all: "Todas as colaboradoras",
   onlyPending: "Somente pendentes",
-  onlyCompleted: "Somente concluídas",
+  onlyCompleted: "Somente concluÃ­das",
 };
 
 function buildEdgeMap(edges: Array<{ fromEmployeeId: string; toEmployeeId: string }>) {
@@ -163,7 +163,7 @@ export default function Sociometria() {
               {t("sociometry.invites.title", { defaultValue: "Status dos convites" })}
             </CardTitle>
             <p className="text-xs text-muted-foreground">
-              {t("sociometry.invites.counter", { defaultValue: "{{total}} convites · {{pending}} pendentes · {{completed}} concluídos",
+              {t("sociometry.invites.counter", { defaultValue: "{{total}} convites Â· {{pending}} pendentes Â· {{completed}} concluÃ­dos",
                 total: links.length,
                 pending: pendingCount,
                 completed: completedCount,
@@ -190,7 +190,7 @@ export default function Sociometria() {
                     </p>
                   </div>
                   <Badge variant={link.status === "completed" ? "secondary" : "outline"}>
-                    {t(`sociometry.invites.status.${link.status}`, { defaultValue: link.status === "completed" ? "Concluído" : link.status === "pending" ? "Pendente" : "Expirado" })}
+                    {t(`sociometry.invites.status.${link.status}`, { defaultValue: link.status === "completed" ? "ConcluÃ­do" : link.status === "pending" ? "Pendente" : "Expirado" })}
                   </Badge>
                 </div>
               ))
@@ -206,7 +206,7 @@ export default function Sociometria() {
 
         <Card className="md:h-[620px]">
           <CardHeader>
-            <CardTitle>{t("sociometry.graph.title", { defaultValue: "Rede sociométrica" })}</CardTitle>
+            <CardTitle>{t("sociometry.graph.title", { defaultValue: "Rede sociomÃ©trica" })}</CardTitle>
           </CardHeader>
           <CardContent>
             <SociometryGraph
@@ -233,7 +233,7 @@ export default function Sociometria() {
                     {employeeName(edge.to)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {t("sociometry.strongPairs.weight", { value: edge.weight, defaultValue: `${edge.weight} citações` })}
+                    {t("sociometry.strongPairs.weight", { value: edge.weight, defaultValue: `${edge.weight} citaÃ§Ãµes` })}
                   </p>
                 </div>
                 <Badge variant="outline" className="bg-green-100 text-green-700">
@@ -242,7 +242,7 @@ export default function Sociometria() {
               </div>
             ))}
             {topPreferred.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("sociometry.strongPairs.empty", { defaultValue: "Ainda não há dados de preferências." })}</p>
+              <p className="text-sm text-muted-foreground">{t("sociometry.strongPairs.empty", { defaultValue: "Ainda nÃ£o hÃ¡ dados de preferÃªncias." })}</p>
             ) : null}
           </CardContent>
         </Card>
@@ -261,7 +261,7 @@ export default function Sociometria() {
                     {employeeName(edge.to)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {t("sociometry.problemPairs.weight", { value: edge.weight, defaultValue: `${edge.weight} citações negativas` })}
+                    {t("sociometry.problemPairs.weight", { value: edge.weight, defaultValue: `${edge.weight} citaÃ§Ãµes negativas` })}
                   </p>
                 </div>
                 <Badge variant="outline" className="bg-red-100 text-red-700">
@@ -278,7 +278,7 @@ export default function Sociometria() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t("sociometry.roles.title", { defaultValue: "Pessoas referência no time" })}</CardTitle>
+          <CardTitle>{t("sociometry.roles.title", { defaultValue: "Pessoas referÃªncia no time" })}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {roleIndicators.map((indicator) => (
@@ -286,7 +286,7 @@ export default function Sociometria() {
               <div>
                 <p className="font-medium leading-tight">{employeeName(indicator.employeeId)}</p>
                 <p className="text-xs text-muted-foreground">
-                  {t(`sociometry.roles.labels.${indicator.role}`, { defaultValue: indicator.role === "problemSolver" ? "Resolve problemas" : indicator.role === "moodKeeper" ? "Mantém o clima" : "Primeira escolha" })}
+                  {t(`sociometry.roles.labels.${indicator.role}`, { defaultValue: indicator.role === "problemSolver" ? "Resolve problemas" : indicator.role === "moodKeeper" ? "MantÃ©m o clima" : "Primeira escolha" })}
                 </p>
               </div>
               <Badge variant="secondary">{indicator.count}</Badge>
