@@ -9,6 +9,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import { TestsProvider } from "@/hooks/useTests";
+import { SociometryProvider } from "@/hooks/useSociometry";
 
 import Dashboard from "@/pages/Dashboard";
 import Funcionarias from "@/pages/Funcionarias";
@@ -19,6 +20,7 @@ import Avaliacoes from "@/pages/Avaliacoes";
 import AssessmentPortal from "@/pages/AssessmentPortal";
 import Sociometria from "@/pages/Sociometria";
 import Relatorios from "@/pages/Relatorios";
+import SociometriaPortal from "@/pages/SociometriaPortal";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -33,6 +35,7 @@ function Router() {
       <Route path="/avaliacoes/:code" component={AssessmentPortal} />
       <Route path="/avaliacoes" component={Avaliacoes} />
       <Route path="/sociometria" component={Sociometria} />
+      <Route path="/sociometria/link/:code" component={SociometriaPortal} />
       <Route path="/relatorios" component={Relatorios} />
       <Route component={NotFound} />
     </Switch>
@@ -40,7 +43,9 @@ function Router() {
 }
 
 function App() {
-  const [isPortalRoute] = useRoute("/avaliacoes/:code");
+  const [isAssessmentPortal] = useRoute("/avaliacoes/:code");
+  const [isSociometryPortal] = useRoute("/sociometria/link/:code");
+  const isPortalRoute = isAssessmentPortal || isSociometryPortal;
   const sidebarStyle = {
     "--sidebar-width": "20rem",
     "--sidebar-width-icon": "4rem",
@@ -49,7 +54,8 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TestsProvider>
-        <TooltipProvider>
+        <SociometryProvider>
+          <TooltipProvider>
           {isPortalRoute ? (
             <Router />
           ) : (
@@ -75,9 +81,15 @@ function App() {
           )}
           <Toaster />
         </TooltipProvider>
+        </SociometryProvider>
       </TestsProvider>
     </QueryClientProvider>
   );
 }
 
 export default App;
+
+
+
+
+
