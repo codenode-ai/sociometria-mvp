@@ -11,7 +11,9 @@ import EmployeeCard from "@/components/EmployeeCard";
 import AddEmployeeModal from "@/components/AddEmployeeModal";
 import EditEmployeeDialog from "@/components/EditEmployeeDialog";
 import { employeeRoleClassMap, employeeStatusClassMap } from "@/lib/employee-styles";
-import type { Employee, InsertEmployee } from "@shared/schema";
+import { useSociometry } from "@/hooks/useSociometry";
+import { useToast } from "@/hooks/use-toast";
+import type { Employee, InsertEmployee, SociometryLinkStatus } from "@shared/schema";
 
 const employeesData: Employee[] = [
   {
@@ -20,8 +22,6 @@ const employeesData: Employee[] = [
     role: "drive",
     status: "active",
     traits: ["organized", "leadership", "communicative", "proactive"],
-    preferences: ["2", "4"],
-    avoidances: ["3"],
   },
   {
     id: "2",
@@ -39,7 +39,7 @@ const employeesData: Employee[] = [
   },
   {
     id: "4",
-    name: "Júlia Costa",
+    name: "Julia Costa",
     role: "help",
     status: "active",
     traits: ["meticulous", "responsible", "analytical"],
@@ -53,7 +53,7 @@ const employeesData: Employee[] = [
   },
   {
     id: "6",
-    name: "Lívia Rocha",
+    name: "Livia Rocha",
     role: "support",
     status: "active",
     traits: ["trustworthy", "patient", "collaborative"],
@@ -67,13 +67,41 @@ const normalizeText = (value: string) => value
 
 type ViewMode = "cards" | "list";
 
+const sociometryStatusLabels: Record<SociometryLinkStatus, string> = {
+  pending: "Sociometria pendente",
+  completed: "Sociometria respondida",
+  expired: "Sociometria expirada",
+};
+
 export default function Funcionarias() {
   const { t } = useTranslation();
+  const { toast } = useToast();
+  const { links, generateLink, employees: sociometryEmployees } = useSociometry();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [employees, setEmployees] = useState<Employee[]>(employeesData);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
+
+  const collaboratorLookup = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+    sociometryEmployees.forEach((employee) => {
+      map.set(employee.name.toLowerCase(), employee);
+    });
+    return map;
+  }, [sociometryEmployees]);
+
+  const latestStatusByCollaboratorId = useMemo(() => {
+    const map = new Map<string, SociometryLinkStatus>();
+    const sortedLinks = [...links].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    sortedLinks.forEach((link) => {
+      if (!map.has(link.collaboratorId)) {
+        map.set(link.collaboratorId, link.status);
+      }
+    });
+    return map;
+  }, [links]);
 
   const filteredEmployees = useMemo(() => {
     const term = searchTerm.trim();
@@ -133,6 +161,44 @@ export default function Funcionarias() {
       return;
     }
     setViewMode(mode);
+  };
+
+  const handleSendSociometry = (employee: Employee) => {
+    const collaborator = collaboratorLookup.get(employee.name.toLowerCase());
+    if (!collaborator) {
+      toast({
+        variant: "destructive",
+        title: t("employees.sociometry.missingCollaboratorTitle", { defaultValue: "Colaboradora não integrada" }),
+        description: t("employees.sociometry.missingCollaboratorDescription", {
+          defaultValue: "Cadastre a colaboradora na base de sociometria para enviar o questionário.",
+        }),
+      });
+      return;
+    }
+
+    const newLink = generateLink(collaborator.id);
+    toast({
+      title: t("employees.sociometry.sentTitle", { defaultValue: "Convite de sociometria gerado" }),
+      description: t("employees.sociometry.sentDescription", {
+        defaultValue: `Compartilhe o link ${newLink.url} com a colaboradora.`,
+        code: newLink.code,
+      }),
+    });
+  };
+
+  const getSociometryStatus = (employee: Employee): SociometryLinkStatus | null => {
+    const collaborator = collaboratorLookup.get(employee.name.toLowerCase());
+    if (!collaborator) {
+      return null;
+    }
+    return latestStatusByCollaboratorId.get(collaborator.id) ?? null;
+  };
+
+  const getSociometryStatusLabel = (status: SociometryLinkStatus | null) => {
+    if (!status) {
+      return null;
+    }
+    return sociometryStatusLabels[status] ?? null;
   };
 
   return (
@@ -196,6 +262,8 @@ export default function Funcionarias() {
               employee={employee}
               onDelete={handleDeleteEmployee}
               onEdit={handleEditRequest}
+              onSendSociometry={handleSendSociometry}
+              sociometryStatus={getSociometryStatus(employee)}
             />
           ))}
         </div>
@@ -214,11 +282,16 @@ export default function Funcionarias() {
             <TableBody>
               {filteredEmployees.map((employee) => {
                 const hasTraits = employee.traits.length > 0;
+                const sociometryStatus = getSociometryStatus(employee);
+                const sociometryLabel = getSociometryStatusLabel(sociometryStatus);
 
                 return (
                   <TableRow key={employee.id} data-testid={`row-employee-${employee.id}`}>
                     <TableCell>
                       <div className="font-semibold">{employee.name}</div>
+                      {sociometryLabel ? (
+                        <p className="text-xs text-muted-foreground">{sociometryLabel}</p>
+                      ) : null}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={employeeRoleClassMap[employee.role]}>
@@ -240,23 +313,29 @@ export default function Funcionarias() {
                           ))}
                         </div>
                       ) : (
-                        <div className="flex flex-wrap items-center gap-3">
-                          <p className="text-sm italic text-muted-foreground">
-                            {t("employees.profilePending")}
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            data-testid={`button-evaluate-employee-${employee.id}`}
-                          >
-                            <Link href="/avaliacoes">{t("employees.evaluateNow")}</Link>
-                          </Button>
-                        </div>
+                        <p className="text-sm italic text-muted-foreground">
+                          {t("employees.profilePending")}
+                        </p>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                          data-testid={`button-evaluate-employee-${employee.id}`}
+                        >
+                          <Link href="/avaliacoes">{t("employees.evaluateNow")}</Link>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSendSociometry(employee)}
+                          data-testid={`button-send-sociometry-${employee.id}`}
+                        >
+                          {t("employees.sendSociometry", { defaultValue: "Enviar sociometria" })}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import SociometryGraph from "@/components/SociometryGraph";
-import { useSociometryMocks } from "@/hooks/useSociometry";
+import { useSociometry } from "@/hooks/useSociometry";
 import { mockSociometryEmployees } from "@/lib/mock/sociometry-data";
 import type { Employee, SociometryQuestionKey } from "@shared/schema";
 
@@ -38,7 +38,7 @@ function buildEdgeMap(edges: Array<{ fromEmployeeId: string; toEmployeeId: strin
 
 export default function Sociometria() {
   const { t } = useTranslation();
-  const { form, links, responses, snapshot } = useSociometryMocks();
+  const { links, responses, snapshot, employees } = useSociometry();
   const [selectedFilter, setSelectedFilter] = useState<FilterValue>("all");
 
   const activeLinkIds = useMemo(() => {
@@ -59,7 +59,7 @@ export default function Sociometria() {
 
   const employeesForGraph: Employee[] = useMemo(
     () =>
-      mockSociometryEmployees.map((employee) => ({
+      employees.map((employee) => ({
         id: employee.id,
         name: employee.name,
         role: employee.role as Employee["role"],
@@ -105,7 +105,7 @@ export default function Sociometria() {
   );
 
   const employeeName = (id: string) =>
-    mockSociometryEmployees.find((employee) => employee.id === id)?.name ?? id;
+    employees.find((employee) => employee.id === id)?.name ?? id;
 
   const filteredLinkSet = useMemo(() => new Set(activeLinkIds), [activeLinkIds]);
   const filteredLinks = useMemo(
@@ -300,5 +300,8 @@ export default function Sociometria() {
     </div>
   );
 }
+
+
+
 
 

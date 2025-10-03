@@ -1,4 +1,4 @@
-Ôªøimport { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRoute } from "wouter";
 import { useTranslation } from "react-i18next";
 import {
@@ -12,33 +12,34 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { useSociometryMocks } from "@/hooks/useSociometry";
+import { useSociometry, type SociometryContextValue } from "@/hooks/useSociometry";
 import { cn } from "@/lib/utils";
 import type {
   SociometryQuestion,
   SociometryQuestionKey,
   SociometrySelection,
 } from "@shared/schema";
-import { mockSociometryEmployees } from "@/lib/mock/sociometry-data";
 
 interface AnswerState {
   [key: string]: string[];
 }
 
 const introduction = [
-  "O question√°rio a seguir ajuda a entender os v√≠nculos interpessoais dentro da equipe.",
-  "Escolha as pessoas com quem voc√™ j√° trabalhou e que conhece bem.",
-  "Suas respostas s√£o confidenciais e servir√£o apenas para melhorar aloca√ß√µes e rotinas.",
+  "O question·rio a seguir ajuda a entender os vÌnculos interpessoais dentro da equipe.",
+  "Escolha as pessoas com quem vocÍ j· trabalhou e que conhece bem.",
+  "Suas respostas s„o confidenciais e servir„o apenas para melhorar alocaÁıes e rotinas.",
 ];
 
-function getCollaboratorName(id: string): string {
-  return mockSociometryEmployees.find((employee) => employee.id === id)?.name ?? id;
+type SociometryEmployee = SociometryContextValue["employees"][number];
+
+function getCollaboratorName(employees: SociometryEmployee[], id: string): string {
+  return employees.find((employee) => employee.id === id)?.name ?? id;
 }
 
 export default function SociometriaPortal() {
   const { t } = useTranslation();
   const [match, params] = useRoute<{ code: string }>("/sociometria/link/:code");
-  const { form, links } = useSociometryMocks();
+  const { form, links, markLinkStatus, employees } = useSociometry();
 
   const link = useMemo(() => links.find((item) => item.code === params?.code), [links, params?.code]);
   const [submitted, setSubmitted] = useState(false);
@@ -51,10 +52,10 @@ export default function SociometriaPortal() {
   });
   const [errors, setErrors] = useState<Record<string, string | null>>({});
 
-  const collaboratorName = link ? getCollaboratorName(link.collaboratorId) : undefined;
+  const collaboratorName = link ? getCollaboratorName(employees, link.collaboratorId) : undefined;
   const availableEmployees = useMemo(
-    () => mockSociometryEmployees.filter((employee) => employee.id !== link?.collaboratorId),
-    [link?.collaboratorId],
+    () => employees.filter((employee) => employee.id !== link?.collaboratorId),
+    [employees, link?.collaboratorId],
   );
 
   if (!match || !link) {
@@ -64,12 +65,12 @@ export default function SociometriaPortal() {
           <CardHeader>
             <div className="flex items-center gap-2 text-destructive">
               <AlertCircle className="h-5 w-5" />
-              <CardTitle>Link n√£o encontrado</CardTitle>
+              <CardTitle>Link n„o encontrado</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-destructive">
-              O link de sociometria informado √© inv√°lido ou expirou. Solicite um novo convite ao seu gestor.
+              O link de sociometria informado È inv·lido ou expirou. Solicite um novo convite ao seu gestor.
             </p>
           </CardContent>
         </Card>
@@ -84,13 +85,13 @@ export default function SociometriaPortal() {
           <CardHeader>
             <div className="flex items-center gap-2 text-primary">
               <BadgeCheck className="h-5 w-5" />
-              <CardTitle>Question√°rio conclu√≠do</CardTitle>
+              <CardTitle>Question·rio concluÌdo</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Obrigado por compartilhar sua percep√ß√£o sobre a equipe.</p>
+            <p>Obrigado por compartilhar sua percepÁ„o sobre a equipe.</p>
             <p>
-              As respostas ajudam a montar duplas mais eficientes, identificar mentores e resolver poss√≠veis conflitos de forma
+              As respostas ajudam a montar duplas mais eficientes, identificar mentores e resolver possÌveis conflitos de forma
               proativa.
             </p>
           </CardContent>
@@ -125,7 +126,7 @@ export default function SociometriaPortal() {
       const current = answers[question.id] ?? [];
       const min = question.minSelections ?? 0;
       if (current.length < min) {
-        nextErrors[question.id] = `Selecione pelo menos ${min} op√ß√£o(√µes).`;
+        nextErrors[question.id] = `Selecione pelo menos ${min} opÁ„o(ıes).`;
         isValid = false;
       } else {
         nextErrors[question.id] = null;
@@ -157,6 +158,7 @@ export default function SociometriaPortal() {
       answers: payload,
     });
 
+    markLinkStatus(link.id, "completed");
     setSubmitted(true);
   };
 
@@ -177,7 +179,7 @@ export default function SociometriaPortal() {
         <CardContent className="space-y-3">
           {availableEmployees.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Ainda n√£o h√° colegas suficientes cadastrados para responder esta pergunta.
+              Ainda n„o h· colegas suficientes cadastrados para responder esta pergunta.
             </p>
           ) : isSingle ? (
             <RadioGroup value={current[0] ?? ""} onValueChange={(value) => handleToggle(question, value)}>
@@ -245,10 +247,10 @@ export default function SociometriaPortal() {
         <CardHeader className="space-y-4">
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">
-              {link.language.toUpperCase()} ¬∑ {form.title}
+              {link.language.toUpperCase()} ∑ {form.title}
             </p>
             <CardTitle className="text-2xl font-semibold">
-              Ol√°, {collaboratorName ?? "colaboradora"}
+              Ol·, {collaboratorName ?? "colaboradora"}
             </CardTitle>
           </div>
           <div className="rounded-md border border-dashed border-muted p-4 text-sm text-muted-foreground">
@@ -282,3 +284,9 @@ export default function SociometriaPortal() {
     </div>
   );
 }
+
+
+
+
+
+

@@ -9,6 +9,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import { TestsProvider } from "@/hooks/useTests";
+import { SociometryProvider } from "@/hooks/useSociometry";
 
 import Dashboard from "@/pages/Dashboard";
 import Funcionarias from "@/pages/Funcionarias";
@@ -53,7 +54,8 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TestsProvider>
-        <TooltipProvider>
+        <SociometryProvider>
+          <TooltipProvider>
           {isPortalRoute ? (
             <Router />
           ) : (
@@ -79,9 +81,15 @@ function App() {
           )}
           <Toaster />
         </TooltipProvider>
+        </SociometryProvider>
       </TestsProvider>
     </QueryClientProvider>
   );
 }
 
 export default App;
+
+
+
+
+
