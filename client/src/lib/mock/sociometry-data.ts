@@ -1,4 +1,4 @@
-ï»¿import type {
+import type {
   SociometryAggregatedEdge,
   SociometryForm,
   SociometryLink,
@@ -8,36 +8,50 @@
   SupportedLanguage,
 } from "@shared/schema";
 
+export interface SociometryMockEmployee {
+  id: string;
+  name: string;
+  role: string;
+}
+
+export const mockSociometryEmployees: SociometryMockEmployee[] = [
+  { id: "employee-ana", name: "Ana Silva", role: "drive" },
+  { id: "employee-maria", name: "Maria Santos", role: "help" },
+  { id: "employee-julia", name: "Julia Costa", role: "help" },
+  { id: "employee-carla", name: "Carla Oliveira", role: "drive" },
+  { id: "employee-livia", name: "Livia Rocha", role: "support" },
+  { id: "employee-patricia", name: "Patricia Lima", role: "support" },
+];
 const baseQuestions: SociometryForm["questions"] = [
   {
     id: "preferWorkWith",
-    prompt: "Com quais colegas vocÃª gostaria de trabalhar com mais frequÃªncia?",
-    helperText: "Selecione atÃ© trÃªs nomes.",
+    prompt: "Com quais colegas você gostaria de trabalhar com mais frequência?",
+    helperText: "Selecione até três nomes.",
     minSelections: 1,
     maxSelections: 3,
   },
   {
     id: "avoidWorkWith",
-    prompt: "Com quais colegas vocÃª evitaria trabalhar, se possÃ­vel?",
-    helperText: "Selecione atÃ© duas pessoas.",
+    prompt: "Com quais colegas você evitaria trabalhar, se possível?",
+    helperText: "Selecione até duas pessoas.",
     minSelections: 0,
     maxSelections: 2,
   },
   {
     id: "problemSolver",
-    prompt: "Quem vocÃª considera uma pessoa que resolve problemas no time?",
+    prompt: "Quem você considera uma pessoa que resolve problemas no time?",
     minSelections: 1,
     maxSelections: 1,
   },
   {
     id: "moodKeeper",
-    prompt: "Quem vocÃª percebe como uma pessoa que mantÃ©m o clima positivo?",
+    prompt: "Quem você percebe como uma pessoa que mantém o clima positivo?",
     minSelections: 1,
     maxSelections: 1,
   },
   {
     id: "hardHouseFirstPick",
-    prompt: "Se tivesse que escolher uma dupla para uma casa difÃ­cil, quem seria sua primeira escolha?",
+    prompt: "Se tivesse que escolher uma dupla para uma casa difícil, quem seria sua primeira escolha?",
     minSelections: 1,
     maxSelections: 1,
   },
@@ -47,7 +61,7 @@ export const mockSociometryForm: SociometryForm = {
   id: "sociometry-form-001",
   version: 1,
   title: "Sociometria trimestral",
-  description: "QuestionÃ¡rio para mapear vÃ­nculos interpessoais e preferÃªncias de trabalho.",
+  description: "Questionário para mapear vínculos interpessoais e preferências de trabalho.",
   questions: baseQuestions,
   defaultLanguage: "pt",
   status: "active",
@@ -158,3 +172,4 @@ export const mockSociometrySnapshot: SociometrySnapshot = {
   avoidanceEdges,
   roleIndicators,
 };
+

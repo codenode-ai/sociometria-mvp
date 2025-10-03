@@ -19,6 +19,7 @@ import Avaliacoes from "@/pages/Avaliacoes";
 import AssessmentPortal from "@/pages/AssessmentPortal";
 import Sociometria from "@/pages/Sociometria";
 import Relatorios from "@/pages/Relatorios";
+import SociometriaPortal from "@/pages/SociometriaPortal";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/avaliacoes/:code" component={AssessmentPortal} />
       <Route path="/avaliacoes" component={Avaliacoes} />
       <Route path="/sociometria" component={Sociometria} />
+      <Route path="/sociometria/link/:code" component={SociometriaPortal} />
       <Route path="/relatorios" component={Relatorios} />
       <Route component={NotFound} />
     </Switch>
@@ -40,7 +42,9 @@ function Router() {
 }
 
 function App() {
-  const [isPortalRoute] = useRoute("/avaliacoes/:code");
+  const [isAssessmentPortal] = useRoute("/avaliacoes/:code");
+  const [isSociometryPortal] = useRoute("/sociometria/link/:code");
+  const isPortalRoute = isAssessmentPortal || isSociometryPortal;
   const sidebarStyle = {
     "--sidebar-width": "20rem",
     "--sidebar-width-icon": "4rem",
