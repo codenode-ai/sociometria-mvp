@@ -11,7 +11,9 @@ Este documento orienta a validação manual dos fluxos mockados antes da integra
 ## 2. Página Sociometria (Admin)
 - **Filtro de convites**: alternar entre "Todas", "Somente pendentes" e "Somente concluídas"; conferir contadores e lista.
 - **Resumo gráfico**: validar que o grafo mostra preferências/evitações baseados no snapshot mockado.
+- **Criterio de neutralidade**: habilitar o filtro `Mostrar neutralidades` e confirmar que somente pares sem votos aparecem em cinza claro; conferir tambem contornos tracejados em nos com neutralidade igual ou superior a 70%.
 - **Pares e papéis**: cards de “Pares preferenciais”, “Pares a evitar” e “Pessoas referência” listam dados do snapshot.
+- **Pessoas neutras**: validar card dedicado listando colaboradoras com neutralidade alta (ex.: ≥70%) e contagem total alinhada ao snapshot `neutralPairs`.
 - **Atualização com portal**: responder um link (ex.: SOCIO-MARIA) e voltar à página; status do convite deve mudar para "respondida" (mock baseado em `markLinkStatus`).
 
 ## 3. Lista de Funcionárias
@@ -29,3 +31,4 @@ Este documento orienta a validação manual dos fluxos mockados antes da integra
 ## Observações
 - Todos os dados são mockados. Logs de envio (`console.info`) devem ser removidos ou substituídos quando o backend for integrado.
 - Antes da integração real, alinhar nomes de colaboradoras e IDs para evitar mismatches entre módulos.
+- Neutralidade passa a alimentar `neutralPairs` e `neutralDegree` no snapshot; ajustar mocks e validacoes quando atualizar dados reais.

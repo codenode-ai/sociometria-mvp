@@ -52,6 +52,7 @@ function cloneSnapshot(snapshot: SociometrySnapshot): SociometrySnapshot {
     preferredEdges: snapshot.preferredEdges.map((edge) => ({ ...edge })),
     avoidanceEdges: snapshot.avoidanceEdges.map((edge) => ({ ...edge })),
     roleIndicators: snapshot.roleIndicators.map((role) => ({ ...role })),
+    neutralIndicators: snapshot.neutralIndicators.map((indicator) => ({ ...indicator })),
   };
 }
 
