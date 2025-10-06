@@ -104,6 +104,12 @@ export default function Sociometria() {
     [snapshot.roleIndicators],
   );
 
+  const neutralIndicators = useMemo(
+    () =>
+      [...snapshot.neutralIndicators].sort((a, b) => b.neutralityPercentage - a.neutralityPercentage),
+    [snapshot.neutralIndicators],
+  );
+
   const employeeName = (id: string) =>
     employees.find((employee) => employee.id === id)?.name ?? id;
 
@@ -229,7 +235,7 @@ export default function Sociometria() {
                 <div>
                   <p className="font-medium">
                     {employeeName(edge.from)}
-                    <span className="mx-1">?</span>
+                    <span className="mx-1">{t("sociometry.pairs.connector", { defaultValue: "e" })}</span>
                     {employeeName(edge.to)}
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -257,7 +263,7 @@ export default function Sociometria() {
                 <div>
                   <p className="font-medium">
                     {employeeName(edge.from)}
-                    <span className="mx-1">?</span>
+                    <span className="mx-1">{t("sociometry.pairs.connector", { defaultValue: "e" })}</span>
                     {employeeName(edge.to)}
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -276,27 +282,55 @@ export default function Sociometria() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("sociometry.roles.title", { defaultValue: "Pessoas referência no time" })}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {roleIndicators.map((indicator) => (
-            <div key={`${indicator.employeeId}-${indicator.role}`} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-              <div>
-                <p className="font-medium leading-tight">{employeeName(indicator.employeeId)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {t(`sociometry.roles.labels.${indicator.role}`, { defaultValue: indicator.role === "problemSolver" ? "Resolve problemas" : indicator.role === "moodKeeper" ? "Mantém o clima" : "Primeira escolha" })}
-                </p>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("sociometry.roles.title", { defaultValue: "Pessoas referência no time" })}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {roleIndicators.map((indicator) => (
+              <div key={`${indicator.employeeId}-${indicator.role}`} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                <div>
+                  <p className="font-medium leading-tight">{employeeName(indicator.employeeId)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t(`sociometry.roles.labels.${indicator.role}`, { defaultValue: indicator.role === "problemSolver" ? "Resolve problemas" : indicator.role === "moodKeeper" ? "Mantém o clima" : "Primeira escolha" })}
+                  </p>
+                </div>
+                <Badge variant="secondary">{indicator.count}</Badge>
               </div>
-              <Badge variant="secondary">{indicator.count}</Badge>
-            </div>
-          ))}
-          {roleIndicators.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("sociometry.roles.empty", { defaultValue: "Nenhum destaque identificado ainda." })}</p>
-          ) : null}
-        </CardContent>
-      </Card>
+            ))}
+            {roleIndicators.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("sociometry.roles.empty", { defaultValue: "Nenhum destaque identificado ainda." })}</p>
+            ) : null}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("sociometry.neutral.title", { defaultValue: "Pessoas neutras" })}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {neutralIndicators.map((indicator) => (
+              <div key={`neutral-${indicator.employeeId}`} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                <div>
+                  <p className="font-medium leading-tight">{employeeName(indicator.employeeId)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("sociometry.neutral.details", {
+                      defaultValue: "Neutralidade {{percentage}}% - {{pairs}} pares neutros",
+                      percentage: indicator.neutralityPercentage,
+                      pairs: indicator.neutralPairCount,
+                    })}
+                  </p>
+                </div>
+                <Badge variant="outline" className="bg-slate-100 text-slate-700">{indicator.neutralityPercentage}%</Badge>
+              </div>
+            ))}
+            {neutralIndicators.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("sociometry.neutral.empty", { defaultValue: "Nenhuma neutralidade relevante identificada." })}</p>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+
     </div>
   );
 }

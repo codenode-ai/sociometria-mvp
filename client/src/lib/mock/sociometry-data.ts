@@ -4,6 +4,7 @@ import type {
   SociometryLink,
   SociometryResponse,
   SociometryRoleIndicator,
+  SociometryNeutralIndicator,
   SociometrySnapshot,
   SupportedLanguage,
 } from "@shared/schema";
@@ -164,6 +165,12 @@ const roleIndicators: SociometryRoleIndicator[] = [
   { employeeId: "employee-maria", role: "moodKeeper", count: 5 },
 ];
 
+const neutralIndicators: SociometryNeutralIndicator[] = [
+  { employeeId: "employee-livia", neutralityPercentage: 78, neutralPairCount: 4 },
+  { employeeId: "employee-patricia", neutralityPercentage: 74, neutralPairCount: 3 },
+  { employeeId: "employee-carla", neutralityPercentage: 71, neutralPairCount: 3 },
+];
+
 export const mockSociometrySnapshot: SociometrySnapshot = {
   id: "snapshot-jun-2024",
   formId: mockSociometryForm.id,
@@ -171,5 +178,6 @@ export const mockSociometrySnapshot: SociometrySnapshot = {
   preferredEdges,
   avoidanceEdges,
   roleIndicators,
+  neutralIndicators,
 };
 

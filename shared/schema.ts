@@ -274,6 +274,12 @@ export interface SociometryRoleIndicator {
   count: number;
 }
 
+export interface SociometryNeutralIndicator {
+  employeeId: string;
+  neutralityPercentage: number;
+  neutralPairCount: number;
+}
+
 export interface SociometrySnapshot {
   id: string;
   formId: string;
@@ -281,4 +287,5 @@ export interface SociometrySnapshot {
   preferredEdges: SociometryAggregatedEdge[];
   avoidanceEdges: SociometryAggregatedEdge[];
   roleIndicators: SociometryRoleIndicator[];
+  neutralIndicators: SociometryNeutralIndicator[];
 }

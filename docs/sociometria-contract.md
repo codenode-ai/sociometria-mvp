@@ -50,6 +50,7 @@ Agregados utilizados na página administrativa.
 - `preferredEdges`: forças positivas (preferWorkWith)
 - `avoidanceEdges`: relações a evitar
 - `roleIndicators`: pessoas reconhecidas como solucionadoras ou mantenedoras do clima
+- `neutralIndicators`: colaboradoras com alto índice de neutralidade (percentual e contagem de pares)
 
 ## Mocks Disponíveis (`@/lib/mock/sociometry-data`)
 - `mockSociometryForm`
