@@ -1,29 +1,39 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import type {
-  LikertBand,
-  LikertQuestion,
+  OptionWeight,
   PsychologicalTest,
+  QuestionOption,
+  ScoreBand,
   SupportedLanguage,
   TestVersionMeta,
+  WeightedQuestion,
 } from "@shared/schema";
 import { mockTests } from "@/lib/mock/test-data";
 import { slugify } from "@/lib/utils";
 
-const DEFAULT_LIKERT_LABELS: Record<number, string> = {
-  1: "Discordo totalmente",
-  2: "Discordo parcialmente",
-  3: "Neutro",
-  4: "Concordo parcialmente",
-  5: "Concordo totalmente",
+const QUESTION_COUNT = 10;
+const OPTION_WEIGHTS: OptionWeight[] = [1, 2, 3, 4];
+
+const DEFAULT_OPTION_LABELS: Record<OptionWeight, string> = {
+  1: "Quase nunca descreve minha atuacao",
+  2: "As vezes descreve minha atuacao",
+  3: "Frequentemente descreve minha atuacao",
+  4: "Quase sempre descreve minha atuacao",
 };
+
+export interface QuestionOptionDraft {
+  id?: string;
+  label?: string;
+  weight: OptionWeight;
+}
 
 export interface LikertQuestionDraft {
   id?: string;
   prompt: string;
   dimension?: string;
   helpText?: string;
-  weight?: number;
   labels?: Record<number, string>;
+  options?: QuestionOptionDraft[];
 }
 
 export interface CreateTestInput {
@@ -34,7 +44,7 @@ export interface CreateTestInput {
   availableLanguages?: SupportedLanguage[];
   estimatedDurationMinutes?: number;
   questions: LikertQuestionDraft[];
-  interpretationBands: LikertBand[];
+  interpretationBands: ScoreBand[];
   status?: PsychologicalTest["status"];
   historyNote?: string;
 }
@@ -58,10 +68,10 @@ function cloneHistory(history: TestVersionMeta[]): TestVersionMeta[] {
   }));
 }
 
-function cloneQuestion(question: LikertQuestion): LikertQuestion {
+function cloneQuestion(question: WeightedQuestion): WeightedQuestion {
   return {
     ...question,
-    labels: { ...question.labels },
+    options: question.options.map((option) => ({ ...option })),
   };
 }
 
@@ -87,7 +97,7 @@ function ensureTags(tags?: string[]): string[] | undefined {
   return cleaned.length > 0 ? cleaned : undefined;
 }
 
-function normalizeBands(bands: LikertBand[]): LikertBand[] {
+function normalizeBands(bands: ScoreBand[]): ScoreBand[] {
   return bands.map((band) => ({
     ...band,
     label: band.label.trim(),
@@ -95,12 +105,77 @@ function normalizeBands(bands: LikertBand[]): LikertBand[] {
   }));
 }
 
+function resolveOptionLabel(options: QuestionOptionDraft[] | undefined, labels: Record<number, string> | undefined, weight: OptionWeight): string {
+  const candidates: Array<string | undefined> = [];
+  if (options) {
+    const option = options.find((item) => item.weight === weight);
+    candidates.push(option?.label);
+  }
+  if (labels) {
+    const labelFromMap = labels[weight];
+    if (typeof labelFromMap === "string") {
+      candidates.push(labelFromMap);
+    }
+  }
+  candidates.push(DEFAULT_OPTION_LABELS[weight]);
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      const trimmed = candidate.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+    }
+  }
+
+  return DEFAULT_OPTION_LABELS[weight];
+}
+
+function normalizeOptions(
+  draft: LikertQuestionDraft,
+  context: { questionId: string; questionIndex: number; preserveIds?: boolean },
+): QuestionOption[] {
+  const normalized: QuestionOption[] = [];
+  const usedWeights = new Set<OptionWeight>();
+  const sourceOptions = draft.options ?? [];
+
+  sourceOptions.slice(0, OPTION_WEIGHTS.length).forEach((option, optionIndex) => {
+    if (!OPTION_WEIGHTS.includes(option.weight)) {
+      throw new Error(`Question ${context.questionIndex + 1} contains an option with an invalid weight.`);
+    }
+    if (usedWeights.has(option.weight)) {
+      throw new Error(`Question ${context.questionIndex + 1} has duplicate weight ${option.weight}.`);
+    }
+
+    const label = (option.label ?? "").trim() || resolveOptionLabel(draft.options, draft.labels, option.weight);
+    if (!label) {
+      throw new Error(`Question ${context.questionIndex + 1} option with weight ${option.weight} must have a label.`);
+    }
+
+    const id =
+      context.preserveIds && option.id ? option.id : `${context.questionId}-opt${optionIndex + 1}`;
+
+    normalized.push({
+      id,
+      label,
+      weight: option.weight,
+    });
+    usedWeights.add(option.weight);
+  });
+
+  if (usedWeights.size !== OPTION_WEIGHTS.length) {
+    throw new Error(`Question ${context.questionIndex + 1} must include weights ${OPTION_WEIGHTS.join(", ")}.`);
+  }
+
+  return normalized;
+}
+
 function normalizeQuestions(
   drafts: LikertQuestionDraft[],
   options: { slug: string; preserveIds?: boolean },
-): LikertQuestion[] {
-  if (drafts.length !== 10) {
-    throw new Error("A psychological test must contain exactly 10 questions.");
+): WeightedQuestion[] {
+  if (drafts.length !== QUESTION_COUNT) {
+    throw new Error(`A psychological test must contain exactly ${QUESTION_COUNT} questions.`);
   }
 
   return drafts.map((draft, index) => {
@@ -109,16 +184,20 @@ function normalizeQuestions(
       throw new Error(`Question ${index + 1} must have a prompt.`);
     }
 
+    const questionId = options.preserveIds && draft.id ? draft.id : `${options.slug}-q${index + 1}`;
+    const optionsNormalized = normalizeOptions(draft, {
+      questionId,
+      questionIndex: index,
+      preserveIds: options.preserveIds,
+    });
+
     return {
-      id: options.preserveIds && draft.id ? draft.id : `${options.slug}-q${index + 1}`,
+      id: questionId,
       prompt,
       dimension: draft.dimension?.trim() || undefined,
       helpText: draft.helpText?.trim() || undefined,
-      scaleMin: 1,
-      scaleMax: 5,
-      labels: draft.labels ? { ...draft.labels } : { ...DEFAULT_LIKERT_LABELS },
-      weight: typeof draft.weight === "number" ? draft.weight : undefined,
-    };
+      options: optionsNormalized,
+    } satisfies WeightedQuestion;
   });
 }
 

@@ -16,7 +16,7 @@ Sociometria MVP e a plataforma que integra organizacao de equipes, avaliacoes ps
    - Importe ou cadastre colaboradoras no modulo dedicado (`client/src/pages/Funcionarias.tsx`) e defina o papel de cada uma.  
    - Cadastre casas e tipos de servico em `client/src/pages/Casas.tsx`, garantindo aderencia entre demanda e competencias do time.
 2. **Construir o mix de avaliacao**  
-   - Utilize o construtor de testes (`client/src/pages/TestEditor.tsx`) para criar instrumentos de 10 questoes Likert com bandas de interpretacao customizaveis.  
+   - Utilize o construtor de testes (`client/src/pages/TestEditor.tsx`) para criar instrumentos de 10 questoes com quatro alternativas ponderadas (pesos 1 a 4) e bandas de interpretacao customizaveis.  
    - Publique ou arquive rapidamente na lista de testes (`client/src/pages/Testes.tsx`).
 3. **Engajar a equipe com avaliacoes guiadas**  
    - Agrupe testes em campanhas completas no modulo de avaliacoes (`client/src/pages/Avaliacoes.tsx`).  

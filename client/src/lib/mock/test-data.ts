@@ -1,51 +1,82 @@
-import { Assessment, AssessmentAssignment, AssessmentLink, AssessmentResponseSet, AssessmentSession, LikertBand, LikertQuestion, LikertResponse, PsychologicalTest, SupportedLanguage, TestVersionMeta } from "@shared/schema";
+import {
+  Assessment,
+  AssessmentAssignment,
+  AssessmentLink,
+  AssessmentResponseSet,
+  AssessmentSession,
+  OptionWeight,
+  PsychologicalTest,
+  QuestionOption,
+  ScoreBand,
+  SupportedLanguage,
+  TestVersionMeta,
+  WeightedQuestion,
+  WeightedResponse,
+} from "@shared/schema";
 
-const baseLikertLabels = {
-  1: "Discordo totalmente",
-  2: "Discordo parcialmente",
-  3: "Neutro",
-  4: "Concordo parcialmente",
-  5: "Concordo totalmente",
+const createOptions = (
+  questionId: string,
+  labels?: [string, string, string, string],
+): QuestionOption[] => {
+  const baseLabels =
+    labels ?? [
+      "Quase nunca descreve minha atuacao",
+      "As vezes descreve minha atuacao",
+      "Frequentemente descreve minha atuacao",
+      "Quase sempre descreve minha atuacao",
+    ];
+
+  return baseLabels.map((label, index) => ({
+    id: `${questionId}-opt${index + 1}`,
+    label,
+    weight: (index + 1) as OptionWeight,
+  }));
 };
 
-const createLikertQuestion = (id: string, prompt: string, dimension: string, helpText?: string): LikertQuestion => ({
+const createQuestion = (
+  id: string,
+  prompt: string,
+  dimension: string,
+  helpText?: string,
+  optionLabels?: [string, string, string, string],
+): WeightedQuestion => ({
   id,
   prompt,
   dimension,
   helpText,
-  scaleMin: 1,
-  scaleMax: 5,
-  labels: baseLikertLabels,
+  options: createOptions(id, optionLabels),
 });
 
-const defaultBands = (low: string, medium: string, high: string): LikertBand[] => [
+const defaultBands = (low: string, medium: string, high: string): ScoreBand[] => [
   {
     id: "low",
     label: low,
     min: 10,
-    max: 25,
-    description: "Resultados abaixo do esperado para a dimensao analisada.",
+    max: 19,
+    description: "Resultados indicam aderencia baixa a competencia analisada.",
     color: "#F97316",
   },
   {
     id: "medium",
     label: medium,
-    min: 26,
-    max: 40,
-    description: "Equilibrio adequado, com oportunidades de refinamento.",
+    min: 20,
+    max: 29,
+    description: "Resultados sugerem desenvolvimento em andamento.",
     color: "#FACC15",
   },
   {
     id: "high",
     label: high,
-    min: 41,
-    max: 50,
-    description: "Alto nivel de dominio para a dimensao avaliada.",
+    min: 30,
+    max: 40,
+    description: "Resultados demonstram forte alinhamento ao comportamento esperado.",
     color: "#22C55E",
   },
 ];
 
-const history = (entries: Array<{ version: number; date: string; note: string; author?: string }>): TestVersionMeta[] =>
+const history = (
+  entries: Array<{ version: number; date: string; note: string; author?: string }>,
+): TestVersionMeta[] =>
   entries.map((entry) => ({
     version: entry.version,
     createdAt: new Date(entry.date),
@@ -53,43 +84,43 @@ const history = (entries: Array<{ version: number; date: string; note: string; a
     author: entry.author,
   }));
 
-const discQuestions: LikertQuestion[] = [
-  createLikertQuestion("disc-1", "Assumo a lideranca quando o grupo precisa de direcao.", "Dominancia"),
-  createLikertQuestion("disc-2", "Gosto de negociar resultados com clareza.", "Dominancia"),
-  createLikertQuestion("disc-3", "Procuro envolver todas as pessoas nas decisoes.", "Influencia"),
-  createLikertQuestion("disc-4", "Adapto meu tom de voz conforme o contexto.", "Influencia"),
-  createLikertQuestion("disc-5", "Mantenho um ritmo constante mesmo sob pressao.", "Estabilidade"),
-  createLikertQuestion("disc-6", "Prefiro ambientes com rotina previsivel.", "Estabilidade"),
-  createLikertQuestion("disc-7", "Confiro os detalhes antes de entregar uma tarefa.", "Conformidade"),
-  createLikertQuestion("disc-8", "Sigo padroes de qualidade mesmo com prazos curtos.", "Conformidade"),
-  createLikertQuestion("disc-9", "Apoio colegas que precisam de orientacao.", "Suporte"),
-  createLikertQuestion("disc-10", "Ofereco feedbacks construtivos ao time.", "Suporte"),
+const discQuestions: WeightedQuestion[] = [
+  createQuestion("disc-1", "Assumo a lideranca quando o grupo precisa de direcao.", "Dominancia"),
+  createQuestion("disc-2", "Gosto de negociar resultados com clareza.", "Dominancia"),
+  createQuestion("disc-3", "Procuro envolver todas as pessoas nas decisoes.", "Influencia"),
+  createQuestion("disc-4", "Adapto meu tom de voz conforme o contexto.", "Influencia"),
+  createQuestion("disc-5", "Mantenho um ritmo constante mesmo sob pressao.", "Estabilidade"),
+  createQuestion("disc-6", "Prefiro ambientes com rotina previsivel.", "Estabilidade"),
+  createQuestion("disc-7", "Confiro os detalhes antes de entregar uma tarefa.", "Conformidade"),
+  createQuestion("disc-8", "Sigo padroes de qualidade mesmo com prazos curtos.", "Conformidade"),
+  createQuestion("disc-9", "Apoio colegas que precisam de orientacao.", "Suporte"),
+  createQuestion("disc-10", "Ofereco feedbacks construtivos ao time.", "Suporte"),
 ];
 
-const collaborationQuestions: LikertQuestion[] = [
-  createLikertQuestion("col-1", "Compreendo rapidamente o papel de cada pessoa no time.", "Clareza"),
-  createLikertQuestion("col-2", "Consigo priorizar tarefas coletivas sem perder qualidade.", "Organizacao"),
-  createLikertQuestion("col-3", "Ajusto minha comunicacao conforme o perfil da equipe.", "Comunicacao"),
-  createLikertQuestion("col-4", "Aceito feedbacks e aplico melhorias logo na sequencia.", "Comunicacao"),
-  createLikertQuestion("col-5", "Percebo sinais de sobrecarga nos colegas.", "Empatia"),
-  createLikertQuestion("col-6", "Apoio quem precisa pausar sem comprometer as entregas.", "Empatia"),
-  createLikertQuestion("col-7", "Tenho planos alternativos quando algo nao sai como previsto.", "Flexibilidade"),
-  createLikertQuestion("col-8", "Aprendo rapidamente novas ferramentas.", "Flexibilidade"),
-  createLikertQuestion("col-9", "Compartilho informacoes importantes sem ser solicitado.", "Transparencia"),
-  createLikertQuestion("col-10", "Faco acordos claros sobre responsabilidades.", "Transparencia"),
+const collaborationQuestions: WeightedQuestion[] = [
+  createQuestion("col-1", "Compreendo rapidamente o papel de cada pessoa no time.", "Clareza"),
+  createQuestion("col-2", "Consigo priorizar tarefas coletivas sem perder qualidade.", "Organizacao"),
+  createQuestion("col-3", "Ajusto minha comunicacao conforme o perfil da equipe.", "Comunicacao"),
+  createQuestion("col-4", "Aceito feedbacks e aplico melhorias logo na sequencia.", "Comunicacao"),
+  createQuestion("col-5", "Percebo sinais de sobrecarga nos colegas.", "Empatia"),
+  createQuestion("col-6", "Apoio quem precisa pausar sem comprometer as entregas.", "Empatia"),
+  createQuestion("col-7", "Tenho planos alternativos quando algo nao sai como previsto.", "Flexibilidade"),
+  createQuestion("col-8", "Aprendo rapidamente novas ferramentas.", "Flexibilidade"),
+  createQuestion("col-9", "Compartilho informacoes importantes sem ser solicitado.", "Transparencia"),
+  createQuestion("col-10", "Faco acordos claros sobre responsabilidades.", "Transparencia"),
 ];
 
-const resilienceQuestions: LikertQuestion[] = [
-  createLikertQuestion("res-1", "Consigo manter a calma diante de mudancas inesperadas.", "Controle"),
-  createLikertQuestion("res-2", "Transformo pressao em foco.", "Controle"),
-  createLikertQuestion("res-3", "Peco apoio quando percebo que estou sobrecarregada.", "Rede de apoio"),
-  createLikertQuestion("res-4", "Consigo desconectar do trabalho ao final do dia.", "Recuperacao"),
-  createLikertQuestion("res-5", "Aprendo algo novo com cada situacao desafiadora.", "Aprendizado"),
-  createLikertQuestion("res-6", "Identifico sinais fisicos e emocionais de estresse.", "Autoconsciencia"),
-  createLikertQuestion("res-7", "Tenho estrategias pessoais para recarregar as energias.", "Recuperacao"),
-  createLikertQuestion("res-8", "Consigo dizer nao quando necessario.", "Limites"),
-  createLikertQuestion("res-9", "Reviso processos para evitar erros futuros.", "Melhoria continua"),
-  createLikertQuestion("res-10", "Reforco acordos de forma respeitosa quando algo foge do combinado.", "Colaboracao"),
+const resilienceQuestions: WeightedQuestion[] = [
+  createQuestion("res-1", "Consigo manter a calma diante de mudancas inesperadas.", "Controle"),
+  createQuestion("res-2", "Transformo pressao em foco.", "Controle"),
+  createQuestion("res-3", "Peco apoio quando percebo que estou sobrecarregada.", "Rede de apoio"),
+  createQuestion("res-4", "Consigo desconectar do trabalho ao final do dia.", "Recuperacao"),
+  createQuestion("res-5", "Aprendo algo novo com cada situacao desafiadora.", "Aprendizado"),
+  createQuestion("res-6", "Identifico sinais fisicos e emocionais de estresse.", "Autoconsciencia"),
+  createQuestion("res-7", "Tenho estrategias pessoais para recarregar as energias.", "Recuperacao"),
+  createQuestion("res-8", "Consigo dizer nao quando necessario.", "Limites"),
+  createQuestion("res-9", "Reviso processos para evitar erros futuros.", "Melhoria continua"),
+  createQuestion("res-10", "Reforco acordos de forma respeitosa quando algo foge do combinado.", "Colaboracao"),
 ];
 
 const defaultHistory = history([
@@ -156,6 +187,8 @@ export const mockTests: PsychologicalTest[] = [
     status: "published",
   },
 ];
+
+const testLookup = new Map(mockTests.map((test) => [test.id, test]));
 
 export const mockAssessmentLinks: AssessmentLink[] = [
   {
@@ -266,17 +299,41 @@ export const mockAssessmentAssignments: AssessmentAssignment[] = [
   },
 ];
 
-const sessionResponses = (responses: Array<{ testId: string; values: Array<{ questionId: string; value: number }>; started: string; submitted?: string; }>): AssessmentResponseSet[] =>
-  responses.map((entry) => ({
-    testId: entry.testId,
-    responses: entry.values.map<LikertResponse>((response) => ({
-      questionId: response.questionId,
-      value: response.value,
-    })),
-    startedAt: new Date(entry.started),
-    submittedAt: entry.submitted ? new Date(entry.submitted) : undefined,
-    durationMs: entry.submitted ? new Date(entry.submitted).getTime() - new Date(entry.started).getTime() : undefined,
-  }));
+const buildResponses = (testId: string, weights: OptionWeight[]): WeightedResponse[] => {
+  const test = testLookup.get(testId);
+  if (!test) {
+    return [];
+  }
+
+  return test.questions.map((question, index) => {
+    const targetWeight = weights[index % weights.length];
+    const option = question.options.find((item) => item.weight === targetWeight) ?? question.options[question.options.length - 1];
+    return {
+      questionId: question.id,
+      optionId: option.id,
+      weight: option.weight,
+    } satisfies WeightedResponse;
+  });
+};
+
+const sessionResponses = (
+  responses: Array<{ testId: string; weights: OptionWeight[]; started: string; submitted?: string }>,
+): AssessmentResponseSet[] =>
+  responses
+    .map((entry) => {
+      const startedAt = new Date(entry.started);
+      const submittedAt = entry.submitted ? new Date(entry.submitted) : undefined;
+      const durationMs = submittedAt ? submittedAt.getTime() - startedAt.getTime() : undefined;
+
+      return {
+        testId: entry.testId,
+        responses: buildResponses(entry.testId, entry.weights),
+        startedAt,
+        submittedAt,
+        durationMs,
+      } satisfies AssessmentResponseSet;
+    })
+    .filter((set) => set.responses.length > 0);
 
 export const mockAssessmentSessions: AssessmentSession[] = [
   {
@@ -290,10 +347,7 @@ export const mockAssessmentSessions: AssessmentSession[] = [
         testId: "test-disc-pt",
         started: "2024-06-03T08:05:00Z",
         submitted: "2024-06-03T08:17:00Z",
-        values: discQuestions.map((question, index) => ({
-          questionId: question.id,
-          value: ((index + 2) % 5) + 1,
-        })),
+        weights: [3, 4, 3, 4, 2, 3, 4, 3, 4, 3],
       },
     ]),
     progress: {
