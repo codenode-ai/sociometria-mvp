@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "wouter";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,8 @@ interface TestCardProps {
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   className?: string;
+  canManage?: boolean;
+  viewHref?: string;
 }
 
 const localeMap: Record<string, string> = {
@@ -25,7 +28,7 @@ const statusVariantMap: Record<Exclude<PsychologicalTest["status"], undefined>, 
   archived: "default",
 };
 
-export default function TestCard({ test, onEdit, onDelete, className }: TestCardProps) {
+export default function TestCard({ test, onEdit, onDelete, className, canManage = true, viewHref }: TestCardProps) {
   const { t, i18n } = useTranslation();
 
   const formattedDate = useMemo(() => {
@@ -95,25 +98,33 @@ export default function TestCard({ test, onEdit, onDelete, className }: TestCard
         </div>
       </CardContent>
       <CardFooter className="mt-auto flex items-center justify-between gap-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onEdit?.(test.id)}
-          data-testid={`button-edit-test-${test.id}`}
-        >
-          <PencilLine className="w-4 h-4 mr-2" />
-          {t("tests.card.actions.edit")}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-destructive hover:text-destructive"
-          onClick={() => onDelete?.(test.id)}
-          data-testid={`button-delete-test-${test.id}`}
-        >
-          <Trash2 className="w-4 h-4 mr-2" />
-          {t("tests.card.actions.delete")}
-        </Button>
+        {canManage ? (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onEdit?.(test.id)}
+              data-testid={`button-edit-test-${test.id}`}
+            >
+              <PencilLine className="w-4 h-4 mr-2" />
+              {t("tests.card.actions.edit")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={() => onDelete?.(test.id)}
+              data-testid={`button-delete-test-${test.id}`}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {t("tests.card.actions.delete")}
+            </Button>
+          </>
+        ) : viewHref ? (
+          <Button asChild variant="outline" size="sm" data-testid={`button-view-test-${test.id}`}>
+            <Link href={viewHref}>{t("tests.card.actions.view", { defaultValue: "Ver" })}</Link>
+          </Button>
+        ) : null}
       </CardFooter>
     </Card>
   );
