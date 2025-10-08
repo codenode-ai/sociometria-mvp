@@ -67,7 +67,7 @@ export default function AssessmentPortal() {
   const [mode, setMode] = useState<"landing" | "active" | "completed">("landing");
   const [isPaused, setIsPaused] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
-  const [answers, setAnswers] = useState<Record<string, Record<string, number | null>>>({});
+  const [answers, setAnswers] = useState<Record<string, Record<string, string | null>>>({});
   const [currentTestIndex, setCurrentTestIndex] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -97,14 +97,14 @@ export default function AssessmentPortal() {
       return;
     }
 
-    const initialAnswers: Record<string, Record<string, number | null>> = {};
+    const initialAnswers: Record<string, Record<string, string | null>> = {};
     tests.forEach(({ test }) => {
-      const seed: Record<string, number | null> = {};
+      const seed: Record<string, string | null> = {};
       test.questions.forEach((question) => {
         const existing = session?.responses
           .find((response) => response.testId === test.id)
-          ?.responses.find((response) => response.questionId === question.id)?.value;
-        seed[question.id] = typeof existing === "number" ? existing : null;
+          ?.responses.find((response) => response.questionId === question.id)?.optionId;
+        seed[question.id] = typeof existing === "string" && existing.trim().length > 0 ? existing : null;
       });
       initialAnswers[test.id] = seed;
     });
@@ -243,12 +243,11 @@ export default function AssessmentPortal() {
     if (!currentTest || !currentQuestion) {
       return;
     }
-    const numericValue = Number(value);
     setAnswers((previous) => ({
       ...previous,
       [currentTest.test.id]: {
         ...(previous[currentTest.test.id] ?? {}),
-        [currentQuestion.id]: Number.isFinite(numericValue) ? numericValue : null,
+        [currentQuestion.id]: value && value.trim().length > 0 ? value : null,
       },
     }));
     scheduleAutosave();
@@ -515,28 +514,26 @@ export default function AssessmentPortal() {
                   </div>
                   {currentQuestion ? (
                     <RadioGroup
-                      value={currentAnswer != null ? String(currentAnswer) : ""}
+                      value={currentAnswer ?? ""}
                       onValueChange={handleAnswerChange}
-                      className="grid gap-3 sm:grid-cols-5"
+                      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
                     >
-                      {(Object.entries(currentQuestion.labels ?? {}) as Array<[string, string]>)
-                        .sort(([a], [b]) => Number(a) - Number(b))
-                        .map(([value, label]) => (
-                          <Label
-                            key={value}
-                            htmlFor={`${currentQuestion.id}-${value}`}
-                            className={cn(
-                              "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border p-4 text-center transition",
-                              currentAnswer === Number(value)
-                                ? "border-primary bg-primary/10"
-                                : "border-border hover:bg-muted",
-                            )}
-                          >
-                            <RadioGroupItem value={value} id={`${currentQuestion.id}-${value}`} className="sr-only" />
-                            <span className="text-2xl font-semibold text-primary">{value}</span>
-                            <span className="text-sm text-muted-foreground">{label}</span>
-                          </Label>
-                        ))}
+                      {currentQuestion.options.map((option) => (
+                        <Label
+                          key={option.id}
+                          htmlFor={`${currentQuestion.id}-${option.id}`}
+                          className={cn(
+                            "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border p-4 text-center transition",
+                            currentAnswer === option.id
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:bg-muted",
+                          )}
+                        >
+                          <RadioGroupItem value={option.id} id={`${currentQuestion.id}-${option.id}`} className="sr-only" />
+                          <span className="text-2xl font-semibold text-primary">{option.weight}</span>
+                          <span className="text-sm text-muted-foreground">{option.label}</span>
+                        </Label>
+                      ))}
                     </RadioGroup>
                   ) : null}
                 </CardContent>
@@ -653,7 +650,7 @@ function testOffset(tests: PortalTest[], testIndex: number, questionIndex: numbe
   return offset;
 }
 
-function allAnsweredForTest(testId: string, answers: Record<string, Record<string, number | null>>) {
+function allAnsweredForTest(testId: string, answers: Record<string, Record<string, string | null>>) {
   const perQuestion = answers[testId];
   if (!perQuestion) {
     return false;

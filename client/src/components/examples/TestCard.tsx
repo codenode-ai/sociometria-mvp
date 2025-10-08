@@ -1,12 +1,12 @@
-import type { PsychologicalTest } from "@shared/schema";
+
+import type { OptionWeight, PsychologicalTest } from "@shared/schema";
 import TestCard from "../TestCard";
 
-const likertLabels: Record<number, string> = {
-  1: "Discordo totalmente",
-  2: "Discordo parcialmente",
-  3: "Neutro",
-  4: "Concordo parcialmente",
-  5: "Concordo totalmente",
+const optionLabels: Record<OptionWeight, string> = {
+  1: "Quase nunca descreve minha atuacao",
+  2: "As vezes descreve minha atuacao",
+  3: "Frequentemente descreve minha atuacao",
+  4: "Quase sempre descreve minha atuacao",
 };
 
 const mockTest: PsychologicalTest = {
@@ -21,32 +21,34 @@ const mockTest: PsychologicalTest = {
     id: `q-${index + 1}`,
     prompt: `Como voce reage em situacoes de alta pressao? (${index + 1})`,
     dimension: "comportamento",
-    scaleMin: 1,
-    scaleMax: 5,
-    labels: likertLabels,
+    options: (Object.entries(optionLabels) as Array<[string, string]>).map(([weight, label]) => ({
+      id: `q-${index + 1}-opt${weight}`,
+      weight: Number(weight) as OptionWeight,
+      label,
+    })),
   })),
   interpretationBands: [
     {
       id: "low",
       label: "Baixo nivel",
       min: 10,
-      max: 25,
+      max: 19,
       description: "Resultados indicam oportunidade para desenvolvimento comportamental.",
       color: "#F97316",
     },
     {
       id: "medium",
       label: "Equilibrado",
-      min: 26,
-      max: 40,
+      min: 20,
+      max: 29,
       description: "Perfil consistente para atuacao em equipe.",
       color: "#FACC15",
     },
     {
       id: "high",
       label: "Alto nivel",
-      min: 41,
-      max: 50,
+      min: 30,
+      max: 40,
       description: "Exibe excelencia na dimensao analisada.",
       color: "#22C55E",
     },

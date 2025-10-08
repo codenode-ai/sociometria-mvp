@@ -7,11 +7,12 @@ import { Eraser, Plus, Search } from "lucide-react";
 import TestCard from "@/components/TestCard";
 import { useTests } from "@/hooks/useTests";
 import { useToast } from "@/hooks/use-toast";
+import { useSession } from "@/hooks/useSession";
 
 const normalizeText = (value: string) =>
   value
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 
 export default function Testes() {
@@ -19,6 +20,8 @@ export default function Testes() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { tests, deleteTest } = useTests();
+  const { currentUser } = useSession();
+  const canManageInstruments = currentUser.role === "psychologist";
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredTests = useMemo(() => {
@@ -36,10 +39,16 @@ export default function Testes() {
   }, [tests, searchTerm]);
 
   const handleEditTest = (id: string) => {
+    if (!canManageInstruments) {
+      return;
+    }
     navigate(`/testes/${id}/editar`);
   };
 
   const handleDeleteTest = (id: string) => {
+    if (!canManageInstruments) {
+      return;
+    }
     const test = tests.find((item) => item.id === id);
     deleteTest(id);
     toast({
@@ -60,12 +69,14 @@ export default function Testes() {
             <Eraser className="w-4 h-4 mr-2" />
             {t("tests.actions.clearFilters")}
           </Button>
-          <Button asChild data-testid="button-create-test">
-            <Link href="/testes/novo" className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              {t("actions.addTest")}
-            </Link>
-          </Button>
+          {canManageInstruments ? (
+            <Button asChild data-testid="button-create-test">
+              <Link href="/testes/novo" className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                {t("actions.addTest")}
+              </Link>
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -90,6 +101,8 @@ export default function Testes() {
           <TestCard
             key={test.id}
             test={test}
+            canManage={canManageInstruments}
+            viewHref={!canManageInstruments ? `/testes/${test.id}` : undefined}
             onEdit={handleEditTest}
             onDelete={handleDeleteTest}
           />

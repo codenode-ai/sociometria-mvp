@@ -36,19 +36,24 @@ export const insertHouseSchema = z.object({
 
 export type InsertHouse = z.infer<typeof insertHouseSchema>;
 
-export interface LikertQuestion {
+export type OptionWeight = 1 | 2 | 3 | 4;
+
+export interface QuestionOption {
+  id: string;
+  label: string;
+  weight: OptionWeight;
+}
+
+export interface WeightedQuestion {
   id: string;
   prompt: string;
   helpText?: string;
   dimension?: string;
-  reverseScore?: boolean;
-  scaleMin: number;
-  scaleMax: number;
-  labels?: Record<number, string>;
-  weight?: number;
+  options: QuestionOption[];
 }
 
-export interface LikertBand {
+
+export interface ScoreBand {
   id: string;
   label: string;
   min: number;
@@ -71,8 +76,8 @@ export interface PsychologicalTest {
   availableLanguages: SupportedLanguage[];
   title: string;
   description: string;
-  questions: LikertQuestion[];
-  interpretationBands: LikertBand[];
+  questions: WeightedQuestion[];
+  interpretationBands: ScoreBand[];
   tags?: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -148,14 +153,15 @@ export interface AssessmentAssignment {
   metadata?: Record<string, unknown>;
 }
 
-export interface LikertResponse {
+export interface WeightedResponse {
   questionId: string;
-  value: number;
+  optionId: string;
+  weight: OptionWeight;
 }
 
 export interface AssessmentResponseSet {
   testId: string;
-  responses: LikertResponse[];
+  responses: WeightedResponse[];
   startedAt: Date;
   submittedAt?: Date;
   durationMs?: number;

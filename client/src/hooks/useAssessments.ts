@@ -83,7 +83,10 @@ const cloneAssignment = (assignment: AssessmentAssignment): AssessmentAssignment
 
 const cloneTest = (test: PsychologicalTest): PsychologicalTest => ({
   ...test,
-  questions: test.questions.map((question) => ({ ...question })),
+  questions: test.questions.map((question) => ({
+    ...question,
+    options: question.options.map((option) => ({ ...option })),
+  })),
   interpretationBands: test.interpretationBands.map((band) => ({ ...band })),
   history: cloneHistory(test.history),
   createdAt: new Date(test.createdAt),
