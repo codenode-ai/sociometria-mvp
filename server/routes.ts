@@ -7,7 +7,7 @@ import { testsRouter } from "./api/tests";
 import { authRouter } from "./api/auth";
 import { authenticateRequest } from "./middleware/auth";
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export function registerRoutes(app: Express): Server {
   const apiRouter = Router();
 
   apiRouter.use("/auth", authRouter);
@@ -27,7 +27,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return next();
   });
 
-  const httpServer = createServer(app);
-
-  return httpServer;
+  return createServer(app);
 }
