@@ -1,4 +1,4 @@
-﻿import { useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,27 +16,102 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { useEmployees } from "@/hooks/useEmployees";
+import { useTests } from "@/hooks/useTests";
+import { useHouses } from "@/hooks/useHouses";
+import type { Employee } from "@shared/schema";
 
-const performanceData = [
-  { name: "Ana Silva", tasks: 45, rating: 4.8 },
-  { name: "Maria Santos", tasks: 38, rating: 4.6 },
-  { name: "Carla Oliveira", tasks: 32, rating: 4.2 },
-  { name: "Julia Costa", tasks: 41, rating: 4.7 },
-  { name: "Patricia Lima", tasks: 35, rating: 4.4 },
-];
+type PerformanceDatum = {
+  name: string;
+  tasks: number;
+  rating: number;
+};
 
-const combinationData = [
-  { pairKey: "anaMaria", pair: "Ana & Maria", success: 95, color: "#10b981" },
-  { pairKey: "carlaJulia", pair: "Carla & Julia", success: 88, color: "#3b82f6" },
-  { pairKey: "anaJulia", pair: "Ana & Julia", success: 82, color: "#8b5cf6" },
-  { pairKey: "mariaPatricia", pair: "Maria & Patricia", success: 79, color: "#f59e0b" },
-];
+type CombinationDatum = {
+  pairKey: string;
+  pair: string;
+  success: number;
+  color: string;
+};
 
-const statusDistribution = [
-  { status: "active", value: 20, color: "#10b981" },
-  { status: "leave", value: 3, color: "#f59e0b" },
-  { status: "inactive", value: 1, color: "#ef4444" },
-];
+type StatusSlice = {
+  status: Employee["status"];
+  value: number;
+  color: string;
+};
+
+const COMBINATION_COLORS = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ec4899"];
+
+function buildPerformanceDataset(employees: Employee[]): PerformanceDatum[] {
+  return employees
+    .map((employee) => {
+      const interactions = (employee.preferences?.length ?? 0) + (employee.avoidances?.length ?? 0);
+      const ratingBase = 4.2 + (employee.preferences?.length ?? 0) * 0.15 - (employee.avoidances?.length ?? 0) * 0.25;
+      const rating = Math.min(5, Math.max(1, Number(ratingBase.toFixed(2))));
+      return {
+        name: employee.name,
+        tasks: interactions,
+        rating,
+      };
+    })
+    .sort((a, b) => b.tasks - a.tasks)
+    .slice(0, 8);
+}
+
+function buildCombinationDataset(employees: Employee[]): CombinationDatum[] {
+  const combinations: CombinationDatum[] = [];
+  const employeesById = new Map(employees.map((employee) => [employee.id, employee]));
+  const seen = new Set<string>();
+
+  employees.forEach((employee) => {
+    const prefs = employee.preferences ?? [];
+    prefs.forEach((targetId) => {
+      const target = employeesById.get(targetId);
+      if (!target) return;
+      const key = [employee.id, target.id].sort().join("-");
+      if (seen.has(key)) return;
+      const mutual = (target.preferences ?? []).includes(employee.id);
+      const avoidance = (employee.avoidances ?? []).includes(target.id) || (target.avoidances ?? []).includes(employee.id);
+      let success = 70 + (prefs.length + (target.preferences ?? []).length) * 5;
+      if (mutual) success += 10;
+      if (avoidance) success -= 20;
+      success = Math.min(98, Math.max(35, success));
+      combinations.push({
+        pairKey: key,
+        pair: `${employee.name} & ${target.name}`,
+        success: Math.round(success),
+        color: COMBINATION_COLORS[combinations.length % COMBINATION_COLORS.length],
+      });
+      seen.add(key);
+    });
+  });
+
+  return combinations.sort((a, b) => b.success - a.success).slice(0, 6);
+}
+
+function buildStatusDataset(employees: Employee[]): StatusSlice[] {
+  const colors: Record<Employee["status"], string> = {
+    active: "#10b981",
+    leave: "#f59e0b",
+    inactive: "#ef4444",
+  };
+
+  const counts = employees.reduce<Record<Employee["status"], number>>(
+    (acc, employee) => {
+      acc[employee.status] = (acc[employee.status] ?? 0) + 1;
+      return acc;
+    },
+    { active: 0, leave: 0, inactive: 0 },
+  );
+
+  return (Object.entries(counts) as Array<[Employee["status"], number]>)
+    .filter(([, value]) => value > 0)
+    .map(([status, value]) => ({
+      status,
+      value,
+      color: colors[status],
+    }));
+}
 
 const reportCards = [
   {
@@ -67,6 +142,33 @@ const reportCards = [
 
 export default function Relatorios() {
   const { t } = useTranslation();
+  const {
+    employees,
+    isLoading: employeesLoading,
+    isError: employeesError,
+  } = useEmployees();
+  const {
+    houses,
+    isLoading: housesLoading,
+    isError: housesError,
+  } = useHouses();
+  const { tests, isLoading: testsLoading, isError: testsError } = useTests();
+
+  const isLoading = employeesLoading || housesLoading || testsLoading;
+  const hasError = employeesError || housesError || testsError;
+
+  const performanceData = useMemo(
+    () => buildPerformanceDataset(employees),
+    [employees],
+  );
+  const combinationData = useMemo(
+    () => buildCombinationDataset(employees),
+    [employees],
+  );
+  const statusDistribution = useMemo(
+    () => buildStatusDataset(employees),
+    [employees],
+  );
 
   const localizedStatusData = useMemo(
     () =>
@@ -74,17 +176,17 @@ export default function Relatorios() {
         ...item,
         name: t(`statuses.${item.status}`),
       })),
-    [t],
+    [statusDistribution, t],
   );
 
   const localizedCombinations = useMemo(
     () =>
       combinationData.map((combo, index) => ({
         ...combo,
-        label: t(`reports.combinations.${combo.pairKey}`, { defaultValue: combo.pair }),
+        label: combo.pair,
         index,
       })),
-    [t],
+    [combinationData],
   );
 
   const handleExportPDF = (reportType: string) => {
@@ -97,12 +199,36 @@ export default function Relatorios() {
     return t("reports.charts.badge.regular");
   };
 
+  if (hasError) {
+    return (
+      <div className="p-6 space-y-4" data-testid="page-relatorios-error">
+        <h1 className="text-3xl font-bold">{t("reports.title")}</h1>
+        <p className="text-destructive">
+          {t("reports.error", { defaultValue: "Nao foi possivel carregar os relatorios." })}
+        </p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-4" data-testid="page-relatorios-loading">
+        <h1 className="text-3xl font-bold">{t("reports.title")}</h1>
+        <p className="text-muted-foreground">
+          {t("reports.loading", { defaultValue: "Carregando dados analiticos..." })}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6" data-testid="page-relatorios">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">{t("reports.title")}</h1>
-          <p className="text-muted-foreground">{t("reports.subtitle")}</p>
+          <p className="text-muted-foreground">
+            {t("reports.subtitle")}
+          </p>
         </div>
         <Button onClick={() => handleExportPDF("general")} data-testid="button-export-general">
           <Download className="w-4 h-4 mr-2" />
@@ -119,6 +245,24 @@ export default function Relatorios() {
             </CardHeader>
             <CardContent>
               <p className="text-xs text-muted-foreground">{t(report.descriptionKey)}</p>
+              <div className="mt-3 text-xs text-muted-foreground">
+                {t("reports.summary.employees", {
+                  count: employees.length,
+                  defaultValue: `Colaboradoras: ${employees.length}`,
+                })}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {t("reports.summary.houses", {
+                  count: houses.length,
+                  defaultValue: `Casas: ${houses.length}`,
+                })}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {t("reports.summary.tests", {
+                  count: tests.length,
+                  defaultValue: `Testes: ${tests.length}`,
+                })}
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -140,16 +284,27 @@ export default function Relatorios() {
             <CardTitle>{t("reports.charts.performance")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={performanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="tasks" fill="hsl(var(--chart-1))" name={t("reports.charts.performance")}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            {performanceData.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t("reports.charts.emptyPerformance", {
+                  defaultValue: "Ainda nao ha interacoes suficientes para montar este grafico.",
+                })}
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={performanceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar
+                    dataKey="tasks"
+                    fill="hsl(var(--chart-1))"
+                    name={t("reports.charts.performance")}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -158,23 +313,31 @@ export default function Relatorios() {
             <CardTitle>{t("reports.charts.statusDistribution")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={localizedStatusData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
-                  {localizedStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {localizedStatusData.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t("reports.charts.emptyStatus", {
+                  defaultValue: "Cadastre colaboradoras para visualizar a distribuicao de status.",
+                })}
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={localizedStatusData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                  >
+                    {localizedStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -184,35 +347,32 @@ export default function Relatorios() {
           <CardTitle>{t("reports.charts.topCombinations")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {localizedCombinations.map((combo) => (
-              <div key={combo.pairKey} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: combo.color }} />
-                  <div>
-                    <p className="font-medium" data-testid={`text-combo-${combo.index}`}>
-                      {combo.label}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {t("reports.charts.successRate", { rate: combo.success })}
-                    </p>
+          {localizedCombinations.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t("reports.charts.emptyCombinations", {
+                defaultValue: "Registre preferencias entre colaboradoras para acompanhar combinacoes fortes.",
+              })}
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {localizedCombinations.map((combo) => (
+                <div key={combo.pairKey} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: combo.color }} />
+                    <div>
+                      <p className="font-medium" data-testid={`text-combo-${combo.index}`}>
+                        {combo.label}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {t("reports.charts.successRate", { rate: combo.success })}
+                      </p>
+                    </div>
                   </div>
+                  <Badge variant="outline">{getBadgeLabel(combo.success)}</Badge>
                 </div>
-                <Badge
-                  variant="secondary"
-                  className={
-                    combo.success >= 90
-                      ? "bg-green-100 text-green-700"
-                      : combo.success >= 80
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-yellow-100 text-yellow-700"
-                  }
-                >
-                  {getBadgeLabel(combo.success)}
-                </Badge>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

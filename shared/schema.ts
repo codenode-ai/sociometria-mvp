@@ -10,11 +10,17 @@ export interface Employee {
   traits: string[];
   preferences?: string[];
   avoidances?: string[];
+  notes?: string;
 }
 
 export const insertEmployeeSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   role: z.enum(["drive", "help", "support"]),
+  status: z.enum(["active", "inactive", "leave"]).optional(),
+  traits: z.array(z.string()).optional(),
+  preferences: z.array(z.string()).optional(),
+  avoidances: z.array(z.string()).optional(),
+  notes: z.string().optional(),
 });
 
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
@@ -25,6 +31,8 @@ export interface House {
   cleaningType: "quick" | "standard" | "meticulous";
   size: "small" | "medium" | "large";
   address?: string;
+  tags?: string[];
+  notes?: string;
 }
 
 export const insertHouseSchema = z.object({
@@ -32,6 +40,8 @@ export const insertHouseSchema = z.object({
   cleaningType: z.enum(["quick", "standard", "meticulous"]),
   size: z.enum(["small", "medium", "large"]),
   address: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  notes: z.string().optional(),
 });
 
 export type InsertHouse = z.infer<typeof insertHouseSchema>;

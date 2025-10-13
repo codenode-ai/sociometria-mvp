@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+ï»¿import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -12,65 +12,23 @@ import AddEmployeeModal from "@/components/AddEmployeeModal";
 import EditEmployeeDialog from "@/components/EditEmployeeDialog";
 import { employeeRoleClassMap, employeeStatusClassMap } from "@/lib/employee-styles";
 import type { Employee, InsertEmployee } from "@shared/schema";
+import { useEmployees } from "@/hooks/useEmployees";
+import { useToast } from "@/hooks/use-toast";
 
-const employeesData: Employee[] = [
-  {
-    id: "1",
-    name: "Ana Silva",
-    role: "drive",
-    status: "active",
-    traits: ["organized", "leadership", "communicative", "proactive"],
-    preferences: ["2", "4"],
-    avoidances: ["3"],
-  },
-  {
-    id: "2",
-    name: "Maria Santos",
-    role: "help",
-    status: "active",
-    traits: ["detailOriented", "collaborative", "patient", "trustworthy"],
-  },
-  {
-    id: "3",
-    name: "Carla Oliveira",
-    role: "drive",
-    status: "leave",
-    traits: ["energetic", "creative", "flexible"],
-  },
-  {
-    id: "4",
-    name: "Júlia Costa",
-    role: "help",
-    status: "active",
-    traits: ["meticulous", "responsible", "analytical"],
-  },
-  {
-    id: "5",
-    name: "Patricia Lima",
-    role: "help",
-    status: "inactive",
-    traits: ["systematic", "punctual", "discreet"],
-  },
-  {
-    id: "6",
-    name: "Lívia Rocha",
-    role: "support",
-    status: "active",
-    traits: ["trustworthy", "patient", "collaborative"],
-  },
-];
-
-const normalizeText = (value: string) => value
-  .normalize("NFD")
-  .replace(/[\u0300-\u036f]/g, "")
-  .toLowerCase();
+const normalizeText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 
 type ViewMode = "cards" | "list";
 
 export default function Funcionarias() {
   const { t } = useTranslation();
+  const { toast } = useToast();
+  const { employees, isLoading, isError, createEmployee, updateEmployee, deleteEmployee } = useEmployees();
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [employees, setEmployees] = useState<Employee[]>(employeesData);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
@@ -85,18 +43,42 @@ export default function Funcionarias() {
     return employees.filter((emp) => normalizeText(emp.name).includes(normalizedTerm));
   }, [employees, searchTerm]);
 
-  const handleAddEmployee = (newEmployee: InsertEmployee) => {
-    const employee: Employee = {
-      id: Date.now().toString(),
-      ...newEmployee,
-      status: "active",
-      traits: [],
-    };
-    setEmployees((prev) => [employee, ...prev]);
+  const handleAddEmployee = async (newEmployee: InsertEmployee) => {
+    try {
+      await createEmployee(newEmployee);
+      toast({
+        title: t("employees.toast.created.title", { defaultValue: "Colaboradora adicionada" }),
+        description: t("employees.toast.created.description", {
+          name: newEmployee.name,
+          defaultValue: "Cadastro concluido com sucesso",
+        }),
+      });
+    } catch (error) {
+      toast({
+        title: t("errors.genericTitle", { defaultValue: "Algo deu errado" }),
+        description: t("employees.toast.created.error", { defaultValue: "Nao foi possivel cadastrar a colaboradora" }),
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteEmployee = (id: string) => {
-    setEmployees((prev) => prev.filter((emp) => emp.id !== id));
+  const handleDeleteEmployee = async (employee: Employee) => {
+    try {
+      await deleteEmployee(employee.id);
+      toast({
+        title: t("employees.toast.deleted.title", { defaultValue: "Colaboradora removida" }),
+        description: t("employees.toast.deleted.description", {
+          name: employee.name,
+          defaultValue: "Removida com sucesso",
+        }),
+      });
+    } catch (error) {
+      toast({
+        title: t("errors.genericTitle", { defaultValue: "Algo deu errado" }),
+        description: t("employees.toast.deleted.error", { defaultValue: "Nao foi possivel remover a colaboradora" }),
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditRequest = (employee: Employee) => {
@@ -104,21 +86,35 @@ export default function Funcionarias() {
     setIsEditOpen(true);
   };
 
-  const handleEditSave = (update: { id: string; name: string; role: Employee["role"]; status: Employee["status"] }) => {
-    setEmployees((prev) =>
-      prev.map((emp) =>
-        emp.id === update.id
-          ? {
-              ...emp,
-              name: update.name.trim(),
-              role: update.role,
-              status: update.status,
-            }
-          : emp,
-      ),
-    );
-    setIsEditOpen(false);
-    setEditingEmployee(null);
+  const handleEditSave = async (update: {
+    id: string;
+    name: string;
+    role: Employee["role"];
+    status: Employee["status"];
+  }) => {
+    try {
+      await updateEmployee({
+        id: update.id,
+        name: update.name.trim(),
+        role: update.role,
+        status: update.status,
+      });
+      toast({
+        title: t("employees.toast.updated.title", { defaultValue: "Colaboradora atualizada" }),
+        description: t("employees.toast.updated.description", {
+          name: update.name,
+          defaultValue: "Alteracoes salvas com sucesso",
+        }),
+      });
+      setIsEditOpen(false);
+      setEditingEmployee(null);
+    } catch (error) {
+      toast({
+        title: t("errors.genericTitle", { defaultValue: "Algo deu errado" }),
+        description: t("employees.toast.updated.error", { defaultValue: "Nao foi possivel atualizar a colaboradora" }),
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditOpenChange = (open: boolean) => {
@@ -128,12 +124,31 @@ export default function Funcionarias() {
     }
   };
 
-  const handleViewModeChange = (mode: ViewMode | "") => {
-    if (!mode) {
-      return;
+  const handleViewModeChange = (mode: string) => {
+    if (mode === "cards" || mode === "list") {
+      setViewMode(mode);
     }
-    setViewMode(mode);
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-6" data-testid="page-funcionarias-loading">
+        <p className="text-muted-foreground">
+          {t("employees.loading", { defaultValue: "Carregando colaboradoras..." })}
+        </p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6" data-testid="page-funcionarias-error">
+        <p className="text-destructive">
+          {t("employees.error", { defaultValue: "Nao foi possivel carregar as colaboradoras" })}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6" data-testid="page-funcionarias">
@@ -169,19 +184,11 @@ export default function Funcionarias() {
           size="sm"
           aria-label={t("employees.viewModes.aria")}
         >
-          <ToggleGroupItem
-            value="cards"
-            aria-label={t("employees.viewModes.cards")}
-            data-testid="toggle-view-cards"
-          >
+          <ToggleGroupItem value="cards" aria-label={t("employees.viewModes.cards")} data-testid="toggle-view-cards">
             <LayoutGrid className="h-4 w-4" />
             <span className="hidden sm:inline">{t("employees.viewModes.cards")}</span>
           </ToggleGroupItem>
-          <ToggleGroupItem
-            value="list"
-            aria-label={t("employees.viewModes.list")}
-            data-testid="toggle-view-list"
-          >
+          <ToggleGroupItem value="list" aria-label={t("employees.viewModes.list")} data-testid="toggle-view-list">
             <ListIcon className="h-4 w-4" />
             <span className="hidden sm:inline">{t("employees.viewModes.list")}</span>
           </ToggleGroupItem>
@@ -194,7 +201,7 @@ export default function Funcionarias() {
             <EmployeeCard
               key={employee.id}
               employee={employee}
-              onDelete={handleDeleteEmployee}
+              onDelete={() => handleDeleteEmployee(employee)}
               onEdit={handleEditRequest}
             />
           ))}
@@ -270,7 +277,7 @@ export default function Funcionarias() {
                           variant="ghost"
                           size="icon"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteEmployee(employee.id)}
+                          onClick={() => handleDeleteEmployee(employee)}
                           data-testid={`button-delete-employee-${employee.id}`}
                         >
                           <span className="sr-only">{t("actions.delete")}</span>
@@ -301,4 +308,3 @@ export default function Funcionarias() {
     </div>
   );
 }
-

@@ -9,44 +9,8 @@ import HouseCard from "@/components/HouseCard";
 import AddHouseModal from "@/components/AddHouseModal";
 import EditHouseDialog from "@/components/EditHouseDialog";
 import type { House, InsertHouse } from "@shared/schema";
-
-const housesData: House[] = [
-  {
-    id: "1",
-    name: "Casa Premium",
-    cleaningType: "meticulous",
-    size: "large",
-    address: "Rua das Flores, 123 - Vila Rica",
-  },
-  {
-    id: "2",
-    name: "Residencia Executiva",
-    cleaningType: "meticulous",
-    size: "large",
-    address: "Av. Principal, 456 - Centro",
-  },
-  {
-    id: "3",
-    name: "Casa Familia Silva",
-    cleaningType: "standard",
-    size: "medium",
-    address: "Rua Tranquila, 789 - Bairro Novo",
-  },
-  {
-    id: "4",
-    name: "Cobertura Moderna",
-    cleaningType: "standard",
-    size: "large",
-    address: "Alameda Vista Alta, 55",
-  },
-  {
-    id: "5",
-    name: "Apartamento Compacto",
-    cleaningType: "quick",
-    size: "small",
-    address: "Rua Nova, 12 - Centro",
-  },
-];
+import { useHouses } from "@/hooks/useHouses";
+import { useToast } from "@/hooks/use-toast";
 
 const normalizeText = (value: string) =>
   value
@@ -58,8 +22,10 @@ type ViewMode = "cards" | "list";
 
 export default function Casas() {
   const { t } = useTranslation();
+  const { toast } = useToast();
+  const { houses, isLoading, isError, createHouse, updateHouse, deleteHouse } = useHouses();
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [houses, setHouses] = useState<House[]>(housesData);
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -80,17 +46,45 @@ export default function Casas() {
     });
   }, [houses, searchTerm, t]);
 
-  const handleAddHouse = (newHouse: InsertHouse) => {
-    const house: House = {
-      id: Date.now().toString(),
-      ...newHouse,
-      address: newHouse.address?.trim() ? newHouse.address.trim() : undefined,
-    };
-    setHouses((prev) => [house, ...prev]);
+  const handleAddHouse = async (newHouse: InsertHouse) => {
+    try {
+      await createHouse({
+        ...newHouse,
+        address: newHouse.address?.trim() ? newHouse.address.trim() : undefined,
+      });
+      toast({
+        title: t("houses.toast.created.title", { defaultValue: "Casa cadastrada" }),
+        description: t("houses.toast.created.description", {
+          name: newHouse.name,
+          defaultValue: "Cadastro concluido com sucesso",
+        }),
+      });
+    } catch (error) {
+      toast({
+        title: t("errors.genericTitle", { defaultValue: "Algo deu errado" }),
+        description: t("houses.toast.created.error", { defaultValue: "Nao foi possivel cadastrar a casa" }),
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteHouse = (id: string) => {
-    setHouses((prev) => prev.filter((house) => house.id !== id));
+  const handleDeleteHouse = async (house: House) => {
+    try {
+      await deleteHouse(house.id);
+      toast({
+        title: t("houses.toast.deleted.title", { defaultValue: "Casa removida" }),
+        description: t("houses.toast.deleted.description", {
+          name: house.name,
+          defaultValue: "Removida com sucesso",
+        }),
+      });
+    } catch (error) {
+      toast({
+        title: t("errors.genericTitle", { defaultValue: "Algo deu errado" }),
+        description: t("houses.toast.deleted.error", { defaultValue: "Nao foi possivel remover a casa" }),
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditRequest = (house: House) => {
@@ -98,28 +92,37 @@ export default function Casas() {
     setIsEditOpen(true);
   };
 
-  const handleEditSave = (update: {
+  const handleEditSave = async (update: {
     id: string;
     name: string;
     cleaningType: House["cleaningType"];
     size: House["size"];
     address?: string;
   }) => {
-    setHouses((prev) =>
-      prev.map((house) =>
-        house.id === update.id
-          ? {
-              ...house,
-              name: update.name.trim(),
-              cleaningType: update.cleaningType,
-              size: update.size,
-              address: update.address?.trim() ? update.address.trim() : undefined,
-            }
-          : house,
-      ),
-    );
-    setIsEditOpen(false);
-    setEditingHouse(null);
+    try {
+      await updateHouse({
+        id: update.id,
+        name: update.name.trim(),
+        cleaningType: update.cleaningType,
+        size: update.size,
+        address: update.address?.trim() ? update.address.trim() : undefined,
+      });
+      toast({
+        title: t("houses.toast.updated.title", { defaultValue: "Casa atualizada" }),
+        description: t("houses.toast.updated.description", {
+          name: update.name,
+          defaultValue: "Alteracoes salvas com sucesso",
+        }),
+      });
+      setIsEditOpen(false);
+      setEditingHouse(null);
+    } catch (error) {
+      toast({
+        title: t("errors.genericTitle", { defaultValue: "Algo deu errado" }),
+        description: t("houses.toast.updated.error", { defaultValue: "Nao foi possivel atualizar a casa" }),
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditOpenChange = (open: boolean) => {
@@ -129,12 +132,31 @@ export default function Casas() {
     }
   };
 
-  const handleViewModeChange = (mode: ViewMode | "") => {
-    if (!mode) {
-      return;
+  const handleViewModeChange = (mode: string) => {
+    if (mode === "cards" || mode === "list") {
+      setViewMode(mode);
     }
-    setViewMode(mode);
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-6" data-testid="page-casas-loading">
+        <p className="text-muted-foreground">
+          {t("houses.loading", { defaultValue: "Carregando casas..." })}
+        </p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6" data-testid="page-casas-error">
+        <p className="text-destructive">
+          {t("houses.error", { defaultValue: "Nao foi possivel carregar as casas" })}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6" data-testid="page-casas">
@@ -187,7 +209,12 @@ export default function Casas() {
             <HouseCard
               key={house.id}
               house={house}
-              onDelete={handleDeleteHouse}
+              onDelete={(id) => {
+                const target = houses.find((item) => item.id === id);
+                if (target) {
+                  void handleDeleteHouse(target);
+                }
+              }}
               onEdit={handleEditRequest}
             />
           ))}
@@ -228,7 +255,7 @@ export default function Casas() {
                         variant="ghost"
                         size="icon"
                         className="text-destructive hover:text-destructive"
-                        onClick={() => handleDeleteHouse(house.id)}
+                        onClick={() => handleDeleteHouse(house)}
                         data-testid={`button-delete-house-${house.id}`}
                       >
                         <span className="sr-only">{t("actions.delete")}</span>

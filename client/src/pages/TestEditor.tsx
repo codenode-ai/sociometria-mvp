@@ -70,7 +70,7 @@ export default function TestEditor({ params }: TestEditorProps) {
   const { t, i18n } = useTranslation();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { createTest, updateTest, getTestById } = useTests();
+  const { createTest, updateTest, getTestById, isLoading } = useTests();
 
   const testId = params?.id;
   const isEditMode = Boolean(testId);
@@ -204,7 +204,7 @@ export default function TestEditor({ params }: TestEditorProps) {
     return true;
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!validate()) {
       return;
@@ -224,14 +224,12 @@ export default function TestEditor({ params }: TestEditorProps) {
     };
 
     if (isEditMode && existingTest) {
-      const result = updateTest(existingTest.id, payload);
-      if (result) {
-        toast({
-          title: t("tests.builder.toastUpdated.title"),
-          description: t("tests.builder.toastUpdated.description"),
-        });
-        navigate("/testes");
-      }
+      await updateTest(existingTest.id, payload);
+      toast({
+        title: t("tests.builder.toastUpdated.title"),
+        description: t("tests.builder.toastUpdated.description"),
+      });
+      navigate("/testes");
       return;
     }
 
@@ -453,3 +451,5 @@ export default function TestEditor({ params }: TestEditorProps) {
     </form>
   );
 }
+
+

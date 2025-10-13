@@ -1,13 +1,31 @@
-import type { Express } from "express";
+﻿import type { Express, Request, Response, NextFunction } from "express";
+import { Router } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { employeesRouter } from "./api/employees";
+import { housesRouter } from "./api/houses";
+import { testsRouter } from "./api/tests";
+import { authRouter } from "./api/auth";
+import { authenticateRequest } from "./middleware/auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  const apiRouter = Router();
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  apiRouter.use("/auth", authRouter);
+
+  apiRouter.use(authenticateRequest);
+
+  apiRouter.use("/employees", employeesRouter);
+  apiRouter.use("/houses", housesRouter);
+  apiRouter.use("/tests", testsRouter);
+
+  app.use("/api", apiRouter);
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith("/api")) {
+      return res.status(404).json({ message: "Not Found" });
+    }
+    return next();
+  });
 
   const httpServer = createServer(app);
 

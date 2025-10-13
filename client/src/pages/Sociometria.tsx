@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,86 +7,210 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import SociometryGraph from "@/components/SociometryGraph";
-import { Employee } from "@shared/schema";
+import { useEmployees } from "@/hooks/useEmployees";
+import { useToast } from "@/hooks/use-toast";
+import type { Employee } from "@shared/schema";
 
-const employeesData: Employee[] = [
-  { id: "1", name: "Ana Silva", role: "drive", status: "active", traits: ["organized", "leadership"] },
-  { id: "2", name: "Maria Santos", role: "help", status: "active", traits: ["detailOriented", "collaborative"] },
-  { id: "3", name: "Carla Oliveira", role: "drive", status: "active", traits: ["proactive", "communicative"] },
-  { id: "4", name: "Júlia Costa", role: "help", status: "active", traits: ["patient", "meticulous"] },
-  { id: "5", name: "Patricia Lima", role: "help", status: "active", traits: ["systematic", "punctual"] },
-];
+type RelationshipsState = Record<string, string[]>;
 
-const basePreferences: Record<string, string[]> = {
-  "1": ["2", "4"],
-  "2": ["1", "5"],
-  "3": ["4", "5"],
-  "4": ["1", "2"],
-  "5": ["2", "3"],
-};
-
-const baseAvoidances: Record<string, string[]> = {
-  "1": ["3"],
-  "3": ["1"],
-  "5": ["1"],
-};
-
-const strongPairs = [
-  { from: "Ana Silva", to: "Maria Santos", strengthKey: "sociometry.strongPairs.badge" },
-  { from: "Carla Oliveira", to: "Júlia Costa", strengthKey: "sociometry.strongPairs.badge" },
-];
-
-const problemPairs = [
-  { from: "Ana Silva", to: "Carla Oliveira", issueKey: "sociometry.problemPairs.conflict" },
-];
+function buildBaseMap(employees: Employee[], key: "preferences" | "avoidances"): RelationshipsState {
+  return employees.reduce<RelationshipsState>((acc, employee) => {
+    acc[employee.id] = [...(employee[key] ?? [])];
+    return acc;
+  }, {});
+}
 
 export default function Sociometria() {
   const { t } = useTranslation();
-  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
-  const [preferences, setPreferences] = useState<Record<string, string[]>>({});
-  const [avoidances, setAvoidances] = useState<Record<string, string[]>>({});
+  const { toast } = useToast();
+  const {
+    employees,
+    isLoading,
+    isError,
+    updateEmployee,
+  } = useEmployees();
 
-  const combinedPreferences = useMemo(
-    () => ({ ...basePreferences, ...preferences }),
-    [preferences],
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
+  const [editedPreferences, setEditedPreferences] = useState<RelationshipsState>({});
+  const [editedAvoidances, setEditedAvoidances] = useState<RelationshipsState>({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  const basePreferences = useMemo(
+    () => buildBaseMap(employees, "preferences"),
+    [employees],
+  );
+  const baseAvoidances = useMemo(
+    () => buildBaseMap(employees, "avoidances"),
+    [employees],
   );
 
-  const combinedAvoidances = useMemo(
-    () => ({ ...baseAvoidances, ...avoidances }),
-    [avoidances],
+  const combinedPreferences = useMemo(() => {
+    const merged: RelationshipsState = { ...basePreferences };
+    Object.entries(editedPreferences).forEach(([key, value]) => {
+      merged[key] = value;
+    });
+    return merged;
+  }, [basePreferences, editedPreferences]);
+
+  const combinedAvoidances = useMemo(() => {
+    const merged: RelationshipsState = { ...baseAvoidances };
+    Object.entries(editedAvoidances).forEach(([key, value]) => {
+      merged[key] = value;
+    });
+    return merged;
+  }, [baseAvoidances, editedAvoidances]);
+
+  const employeesById = useMemo(
+    () => new Map(employees.map((employee) => [employee.id, employee])),
+    [employees],
+  );
+
+  const strongPairs = useMemo(() => {
+    const pairs: { from: string; to: string }[] = [];
+    const seen = new Set<string>();
+
+    Object.entries(combinedPreferences).forEach(([employeeId, prefs]) => {
+      prefs.forEach((targetId) => {
+        if (combinedPreferences[targetId]?.includes(employeeId)) {
+          const [a, b] = [employeeId, targetId].sort();
+          const key = `${a}-${b}`;
+          if (seen.has(key)) return;
+          const from = employeesById.get(employeeId);
+          const to = employeesById.get(targetId);
+          if (from && to) {
+            pairs.push({ from: from.name, to: to.name });
+            seen.add(key);
+          }
+        }
+      });
+    });
+
+    return pairs;
+  }, [combinedPreferences, employeesById]);
+
+  const problemPairs = useMemo(() => {
+    const pairs: { from: string; to: string }[] = [];
+
+    Object.entries(combinedAvoidances).forEach(([employeeId, avoids]) => {
+      const from = employeesById.get(employeeId);
+      if (!from) return;
+      avoids.forEach((targetId) => {
+        const to = employeesById.get(targetId);
+        if (to) {
+          pairs.push({ from: from.name, to: to.name });
+        }
+      });
+    });
+
+    return pairs;
+  }, [combinedAvoidances, employeesById]);
+
+  const selectableEmployees = useMemo(
+    () => employees.filter((employee) => employee.id !== selectedEmployee),
+    [employees, selectedEmployee],
   );
 
   const handlePreferenceChange = (targetId: string, checked: boolean) => {
     if (!selectedEmployee) return;
-
-    setPreferences((prev) => {
-      const current = prev[selectedEmployee] || [];
-      if (checked) {
-        return { ...prev, [selectedEmployee]: [...current, targetId] };
-      }
-      return { ...prev, [selectedEmployee]: current.filter((id) => id !== targetId) };
+    setEditedPreferences((prev) => {
+      const current = prev[selectedEmployee] ?? combinedPreferences[selectedEmployee] ?? [];
+      const next = checked
+        ? current.includes(targetId)
+          ? current
+          : [...current, targetId]
+        : current.filter((id) => id !== targetId);
+      return { ...prev, [selectedEmployee]: next };
     });
   };
 
   const handleAvoidanceChange = (targetId: string, checked: boolean) => {
     if (!selectedEmployee) return;
-
-    setAvoidances((prev) => {
-      const current = prev[selectedEmployee] || [];
-      if (checked) {
-        return { ...prev, [selectedEmployee]: [...current, targetId] };
-      }
-      return { ...prev, [selectedEmployee]: current.filter((id) => id !== targetId) };
+    setEditedAvoidances((prev) => {
+      const current = prev[selectedEmployee] ?? combinedAvoidances[selectedEmployee] ?? [];
+      const next = checked
+        ? current.includes(targetId)
+          ? current
+          : [...current, targetId]
+        : current.filter((id) => id !== targetId);
+      return { ...prev, [selectedEmployee]: next };
     });
   };
 
-  const saveRelationships = () => {
-    console.log("Saving relationships for employee:", selectedEmployee);
-    console.log("Preferences:", combinedPreferences[selectedEmployee] || []);
-    console.log("Avoidances:", combinedAvoidances[selectedEmployee] || []);
+  const saveRelationships = async () => {
+    if (!selectedEmployee) return;
+    setIsSaving(true);
+    try {
+      await updateEmployee({
+        id: selectedEmployee,
+        preferences: combinedPreferences[selectedEmployee] ?? [],
+        avoidances: combinedAvoidances[selectedEmployee] ?? [],
+      });
+      toast({
+        title: t("sociometry.saveSuccessTitle", { defaultValue: "Preferencias salvas" }),
+        description: t("sociometry.saveSuccessDescription", {
+          defaultValue: "As relacoes foram atualizadas com sucesso.",
+        }),
+      });
+      setEditedPreferences((prev) => {
+        const next = { ...prev };
+        delete next[selectedEmployee];
+        return next;
+      });
+      setEditedAvoidances((prev) => {
+        const next = { ...prev };
+        delete next[selectedEmployee];
+        return next;
+      });
+    } catch (error) {
+      toast({
+        title: t("errors.genericTitle", { defaultValue: "Algo deu errado" }),
+        description:
+          error instanceof Error
+            ? error.message
+            : t("sociometry.saveErrorDescription", {
+                defaultValue: "Nao foi possivel atualizar as relacoes.",
+              }),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const selectableEmployees = employeesData.filter((emp) => emp.id !== selectedEmployee);
+  if (isError) {
+    return (
+      <div className="p-6" data-testid="page-sociometria-error">
+        <p className="text-destructive">
+          {t("sociometry.error", {
+            defaultValue: "Nao foi possivel carregar os dados de sociometria.",
+          })}
+        </p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-6" data-testid="page-sociometria-loading">
+        <p className="text-muted-foreground">
+          {t("sociometry.loading", { defaultValue: "Carregando colaboradores..." })}
+        </p>
+      </div>
+    );
+  }
+
+  if (employees.length === 0) {
+    return (
+      <div className="p-6 space-y-4" data-testid="page-sociometria-empty">
+        <h1 className="text-3xl font-bold">{t("sociometry.title")}</h1>
+        <p className="text-muted-foreground">
+          {t("sociometry.emptyState", {
+            defaultValue: "Cadastre colaboradoras para visualizar as relacoes sociometricas.",
+          })}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6" data-testid="page-sociometria">
@@ -108,7 +232,7 @@ export default function Sociometria() {
                   <SelectValue placeholder={t("sociometry.configureCard.employeePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {employeesData.map((employee) => (
+                  {employees.map((employee) => (
                     <SelectItem key={employee.id} value={employee.id}>
                       {employee.name} ({t(`roles.${employee.role}`)})
                     </SelectItem>
@@ -129,9 +253,7 @@ export default function Sociometria() {
                         <Checkbox
                           id={`pref-${employee.id}`}
                           checked={(combinedPreferences[selectedEmployee] || []).includes(employee.id)}
-                          onCheckedChange={(checked) =>
-                            handlePreferenceChange(employee.id, Boolean(checked))
-                          }
+                          onCheckedChange={(checked) => handlePreferenceChange(employee.id, Boolean(checked))}
                         />
                         <Label htmlFor={`pref-${employee.id}`} className="text-sm">
                           {employee.name}
@@ -154,9 +276,7 @@ export default function Sociometria() {
                         <Checkbox
                           id={`avoid-${employee.id}`}
                           checked={(combinedAvoidances[selectedEmployee] || []).includes(employee.id)}
-                          onCheckedChange={(checked) =>
-                            handleAvoidanceChange(employee.id, Boolean(checked))
-                          }
+                          onCheckedChange={(checked) => handleAvoidanceChange(employee.id, Boolean(checked))}
                         />
                         <Label htmlFor={`avoid-${employee.id}`} className="text-sm">
                           {employee.name}
@@ -169,15 +289,26 @@ export default function Sociometria() {
                   </div>
                 </div>
 
-                <Button onClick={saveRelationships} className="w-full" data-testid="button-save-relationships">
-                  {t("actions.saveRelationships")}
+                <Button
+                  onClick={saveRelationships}
+                  className="w-full"
+                  data-testid="button-save-relationships"
+                  disabled={isSaving}
+                >
+                  {isSaving
+                    ? t("sociometry.saving", { defaultValue: "Salvando..." })
+                    : t("actions.saveRelationships")}
                 </Button>
               </>
             )}
           </CardContent>
         </Card>
 
-        <SociometryGraph employees={employeesData} preferences={combinedPreferences} avoidances={combinedAvoidances} />
+        <SociometryGraph
+          employees={employees}
+          preferences={combinedPreferences}
+          avoidances={combinedAvoidances}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -186,18 +317,30 @@ export default function Sociometria() {
             <CardTitle className="text-green-600">{t("sociometry.strongPairs.title")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {strongPairs.map((pair, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">{pair.from}<span className="mx-1">-&gt;</span>{pair.to}</p>
+            {strongPairs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t("sociometry.strongPairs.empty", {
+                  defaultValue: "Nao ha pares com preferencia mutua registrados.",
+                })}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {strongPairs.map((pair, index) => (
+                  <div key={`${pair.from}-${pair.to}-${index}`} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    <div>
+                      <p className="font-medium">
+                        {pair.from}
+                        <span className="mx-1">-&gt;</span>
+                        {pair.to}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="bg-green-100 text-green-700">
+                      {t("sociometry.strongPairs.badge")}
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="bg-green-100 text-green-700">
-                    {t(pair.strengthKey)}
-                  </Badge>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -206,24 +349,33 @@ export default function Sociometria() {
             <CardTitle className="text-red-600">{t("sociometry.problemPairs.title")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {problemPairs.map((pair, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">{pair.from}<span className="mx-1">-&gt;</span>{pair.to}</p>
-                    <p className="text-sm text-muted-foreground">{t(pair.issueKey)}</p>
+            {problemPairs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t("sociometry.problemPairs.empty", {
+                  defaultValue: "Nao ha conflitos registrados entre colaboradoras.",
+                })}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {problemPairs.map((pair, index) => (
+                  <div key={`${pair.from}-${pair.to}-${index}`} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                    <div>
+                      <p className="font-medium">
+                        {pair.from}
+                        <span className="mx-1">-&gt;</span>
+                        {pair.to}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="bg-red-100 text-red-700">
+                      {t("sociometry.problemPairs.conflict")}
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="bg-red-100 text-red-700">
-                    {t("sociometry.problemPairs.badge")}
-                  </Badge>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
     </div>
   );
 }
-
-
