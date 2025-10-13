@@ -12,14 +12,16 @@ import { useSession } from "@/hooks/useSession";
 const normalizeText = (value: string) =>
   value
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 
 export default function Testes() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { tests, isLoading, isError, deleteTest } = useTests();
+  const { tests, deleteTest } = useTests();
+  const { currentUser } = useSession();
+  const canManageInstruments = currentUser.role === "psychologist";
   const [searchTerm, setSearchTerm] = useState("");
   const { role } = useSession();
   const isAdmin = role === "admin";
@@ -39,12 +41,16 @@ export default function Testes() {
   }, [tests, searchTerm]);
 
   const handleEditTest = (id: string) => {
-    if (!isAdmin) return;
+    if (!canManageInstruments) {
+      return;
+    }
     navigate(`/testes/${id}/editar`);
   };
 
-  const handleDeleteTest = async (id: string) => {
-    if (!isAdmin) return;
+  const handleDeleteTest = (id: string) => {
+    if (!canManageInstruments) {
+      return;
+    }
     const test = tests.find((item) => item.id === id);
     try {
       await deleteTest(id);
@@ -94,14 +100,14 @@ export default function Testes() {
             <Eraser className="w-4 h-4 mr-2" />
             {t("tests.actions.clearFilters")}
           </Button>
-          {isAdmin && (
+          {canManageInstruments ? (
             <Button asChild data-testid="button-create-test">
               <Link href="/testes/novo" className="flex items-center gap-2">
                 <Plus className="w-4 h-4" />
                 {t("actions.addTest")}
               </Link>
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -126,8 +132,10 @@ export default function Testes() {
           <TestCard
             key={test.id}
             test={test}
-            onEdit={isAdmin ? handleEditTest : undefined}
-            onDelete={isAdmin ? handleDeleteTest : undefined}
+            canManage={canManageInstruments}
+            viewHref={!canManageInstruments ? `/testes/${test.id}` : undefined}
+            onEdit={handleEditTest}
+            onDelete={handleDeleteTest}
           />
         ))}
       </div>

@@ -3,12 +3,32 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/hooks/useSession";
 import { apiRequest } from "@/lib/queryClient";
 import type {
-  LikertBand,
-  LikertQuestion,
+  OptionWeight,
   PsychologicalTest,
+  QuestionOption,
+  ScoreBand,
   SupportedLanguage,
   TestVersionMeta,
+  WeightedQuestion,
 } from "@shared/schema";
+import { mockTests } from "@/lib/mock/test-data";
+import { slugify } from "@/lib/utils";
+
+const QUESTION_COUNT = 10;
+const OPTION_WEIGHTS: OptionWeight[] = [1, 2, 3, 4];
+
+const DEFAULT_OPTION_LABELS: Record<OptionWeight, string> = {
+  1: "Quase nunca descreve minha atuacao",
+  2: "As vezes descreve minha atuacao",
+  3: "Frequentemente descreve minha atuacao",
+  4: "Quase sempre descreve minha atuacao",
+};
+
+export interface QuestionOptionDraft {
+  id?: string;
+  label?: string;
+  weight: OptionWeight;
+}
 
 export interface LikertQuestionDraft {
   id?: string;
@@ -17,7 +37,7 @@ export interface LikertQuestionDraft {
   dimension?: string;
   helpText?: string;
   labels?: Record<number, string>;
-  weight?: number;
+  options?: QuestionOptionDraft[];
 }
 
 export interface CreateTestInput {
@@ -27,6 +47,8 @@ export interface CreateTestInput {
   tags?: string[];
   availableLanguages?: SupportedLanguage[];
   estimatedDurationMinutes?: number;
+  questions: LikertQuestionDraft[];
+  interpretationBands: ScoreBand[];
   status?: PsychologicalTest["status"];
   historyNote?: string;
   author?: string;
@@ -56,14 +78,11 @@ interface ApiOption {
   label: string;
 }
 
-interface ApiQuestion {
-  id: string;
-  questionKey: string;
-  prompt: string;
-  dimension: string | null;
-  helpText: string | null;
-  position: number;
-  options: ApiOption[];
+function cloneQuestion(question: WeightedQuestion): WeightedQuestion {
+  return {
+    ...question,
+    options: question.options.map((option) => ({ ...option })),
+  };
 }
 
 interface ApiBand {
@@ -101,33 +120,86 @@ interface ApiTest {
   interpretationBands: ApiBand[];
 }
 
-function mapApiQuestion(question: ApiQuestion): LikertQuestion {
-  const labels: Record<number, string> = {};
-  question.options.forEach((option) => {
-    labels[option.weight] = option.label;
+function normalizeBands(bands: ScoreBand[]): ScoreBand[] {
+  return bands.map((band) => ({
+    ...band,
+    label: band.label.trim(),
+    description: band.description?.trim(),
+  }));
+}
+
+function resolveOptionLabel(options: QuestionOptionDraft[] | undefined, labels: Record<number, string> | undefined, weight: OptionWeight): string {
+  const candidates: Array<string | undefined> = [];
+  if (options) {
+    const option = options.find((item) => item.weight === weight);
+    candidates.push(option?.label);
+  }
+  if (labels) {
+    const labelFromMap = labels[weight];
+    if (typeof labelFromMap === "string") {
+      candidates.push(labelFromMap);
+    }
+  }
+  candidates.push(DEFAULT_OPTION_LABELS[weight]);
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      const trimmed = candidate.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+    }
+  }
+
+  return DEFAULT_OPTION_LABELS[weight];
+}
+
+function normalizeOptions(
+  draft: LikertQuestionDraft,
+  context: { questionId: string; questionIndex: number; preserveIds?: boolean },
+): QuestionOption[] {
+  const normalized: QuestionOption[] = [];
+  const usedWeights = new Set<OptionWeight>();
+  const sourceOptions = draft.options ?? [];
+
+  sourceOptions.slice(0, OPTION_WEIGHTS.length).forEach((option, optionIndex) => {
+    if (!OPTION_WEIGHTS.includes(option.weight)) {
+      throw new Error(`Question ${context.questionIndex + 1} contains an option with an invalid weight.`);
+    }
+    if (usedWeights.has(option.weight)) {
+      throw new Error(`Question ${context.questionIndex + 1} has duplicate weight ${option.weight}.`);
+    }
+
+    const label = (option.label ?? "").trim() || resolveOptionLabel(draft.options, draft.labels, option.weight);
+    if (!label) {
+      throw new Error(`Question ${context.questionIndex + 1} option with weight ${option.weight} must have a label.`);
+    }
+
+    const id =
+      context.preserveIds && option.id ? option.id : `${context.questionId}-opt${optionIndex + 1}`;
+
+    normalized.push({
+      id,
+      label,
+      weight: option.weight,
+    });
+    usedWeights.add(option.weight);
   });
 
-  return {
-    id: question.id,
-    prompt: question.prompt,
-    dimension: question.dimension ?? undefined,
-    helpText: question.helpText ?? undefined,
-    scaleMin: 1,
-    scaleMax: 4,
-    labels,
-  } satisfies LikertQuestion;
+  if (usedWeights.size !== OPTION_WEIGHTS.length) {
+    throw new Error(`Question ${context.questionIndex + 1} must include weights ${OPTION_WEIGHTS.join(", ")}.`);
+  }
+
+  return normalized;
 }
 
-function mapApiBand(band: ApiBand): LikertBand {
-  return {
-    id: band.id,
-    label: band.label,
-    min: band.min,
-    max: band.max,
-    description: band.description ?? undefined,
-    color: band.color ?? undefined,
-  } satisfies LikertBand;
-}
+function normalizeQuestions(
+  drafts: LikertQuestionDraft[],
+  options: { slug: string; preserveIds?: boolean },
+): WeightedQuestion[] {
+  if (drafts.length !== QUESTION_COUNT) {
+    throw new Error(`A psychological test must contain exactly ${QUESTION_COUNT} questions.`);
+  }
 
 function mapApiHistory(entry: ApiHistoryEntry): TestVersionMeta {
   return {
@@ -158,20 +230,20 @@ function mapApiTest(test: ApiTest): PsychologicalTest {
   } satisfies PsychologicalTest;
 }
 
-function buildPayload(input: CreateTestInput) {
-  const questions = input.questions.map((question, index) => {
-    const labels = question.labels ?? {};
+    const questionId = options.preserveIds && draft.id ? draft.id : `${options.slug}-q${index + 1}`;
+    const optionsNormalized = normalizeOptions(draft, {
+      questionId,
+      questionIndex: index,
+      preserveIds: options.preserveIds,
+    });
+
     return {
-      id: question.id,
-      questionKey: question.questionKey,
-      prompt: question.prompt,
-      dimension: question.dimension,
-      helpText: question.helpText,
-      options: [1, 2, 3, 4].map((weight) => ({
-        weight,
-        label: labels[weight] ?? '',
-      })),
-    };
+      id: questionId,
+      prompt,
+      dimension: draft.dimension?.trim() || undefined,
+      helpText: draft.helpText?.trim() || undefined,
+      options: optionsNormalized,
+    } satisfies WeightedQuestion;
   });
 
   const interpretationBands = input.interpretationBands.map((band) => ({

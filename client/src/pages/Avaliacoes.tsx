@@ -873,14 +873,12 @@ export default function Avaliacoes() {
                                   <span className="font-normal text-muted-foreground">{question.prompt}</span>
                                 </p>
                                 <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                  {(Object.entries(question.labels ?? {}) as Array<[string, string]>)
-                                    .sort(([a], [b]) => Number(a) - Number(b))
-                                    .map(([value, label]) => (
-                                      <span key={value} className="inline-flex items-center gap-1 rounded-full border px-2 py-1">
-                                        <span className="font-semibold">{value}</span>
-                                        <span>{label}</span>
-                                      </span>
-                                    ))}
+                                  {question.options.map((option) => (
+                                    <span key={option.id} className="inline-flex items-center gap-1 rounded-full border px-2 py-1">
+                                      <span className="font-semibold">{option.weight}</span>
+                                      <span>{option.label}</span>
+                                    </span>
+                                  ))}
                                 </div>
                               </div>
                             ))}

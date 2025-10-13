@@ -1,78 +1,48 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-export type UserRole = "admin" | "user";
+export type UserRole = "psychologist" | "manager" | "viewer";
+
+interface SessionUser {
+  id: string;
+  name: string;
+  role: UserRole;
+}
 
 interface SessionContextValue {
-  accessToken: string | null;
-  role: UserRole | null;
-  loading: boolean;
-  userName: string | null;
-  setSession(token: string | null, role: UserRole | null, userName?: string | null): void;
-  signOut(): void;
+  currentUser: SessionUser;
+  setRole(role: UserRole): void;
 }
+
+const DEFAULT_USER: SessionUser = {
+  id: "demo-user",
+  name: "Colaborador",
+  role: "manager",
+};
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
-const STORAGE_TOKEN_KEY = "sociometria-token";
-const STORAGE_ROLE_KEY = "sociometria-role";
-const STORAGE_NAME_KEY = "sociometria-name";
+const STORAGE_KEY = "sociometria-role";
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<SessionUser>(() => {
+    if (typeof window === "undefined") {
+      return DEFAULT_USER;
+    }
+    const storedRole = window.localStorage.getItem(STORAGE_KEY) as UserRole | null;
+    return storedRole ? { ...DEFAULT_USER, role: storedRole } : DEFAULT_USER;
+  });
 
   useEffect(() => {
-    const storedToken = window.localStorage.getItem(STORAGE_TOKEN_KEY);
-    const storedRole = window.localStorage.getItem(STORAGE_ROLE_KEY) as UserRole | null;
-    const storedName = window.localStorage.getItem(STORAGE_NAME_KEY);
-    if (storedToken) {
-      setAccessToken(storedToken);
-      setRole(storedRole ?? "user");
-      setUserName(storedName ?? null);
+    if (typeof window === "undefined") {
+      return;
     }
-    setLoading(false);
-  }, []);
+    window.localStorage.setItem(STORAGE_KEY, currentUser.role);
+  }, [currentUser.role]);
 
   const value = useMemo<SessionContextValue>(() => ({
-    accessToken,
-    role,
-    loading,
-    userName,
-    setSession(token, nextRole, nextName) {
-      if (token) {
-        window.localStorage.setItem(STORAGE_TOKEN_KEY, token);
-        if (nextRole) {
-          window.localStorage.setItem(STORAGE_ROLE_KEY, nextRole);
-        }
-        if (nextName !== undefined) {
-          if (nextName) {
-            window.localStorage.setItem(STORAGE_NAME_KEY, nextName);
-          } else {
-            window.localStorage.removeItem(STORAGE_NAME_KEY);
-          }
-        }
-      } else {
-        window.localStorage.removeItem(STORAGE_TOKEN_KEY);
-        window.localStorage.removeItem(STORAGE_ROLE_KEY);
-        window.localStorage.removeItem(STORAGE_NAME_KEY);
-      }
-      setAccessToken(token);
-      setRole(nextRole);
-      if (nextName !== undefined) {
-        setUserName(nextName ?? null);
-      }
-    },
-    signOut() {
-      window.localStorage.removeItem(STORAGE_TOKEN_KEY);
-      window.localStorage.removeItem(STORAGE_ROLE_KEY);
-      window.localStorage.removeItem(STORAGE_NAME_KEY);
-      setAccessToken(null);
-      setRole(null);
-      setUserName(null);
-    },
-  }), [accessToken, role, loading, userName]);
+    currentUser,
+    setRole: (role: UserRole) => setCurrentUser((prev) => ({ ...prev, role })),
+  }), [currentUser]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
@@ -80,7 +50,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 export function useSession(): SessionContextValue {
   const context = useContext(SessionContext);
   if (!context) {
-    throw new Error("useSession must be used within SessionProvider");
+    throw new Error("useSession must be used within a SessionProvider");
   }
   return context;
 }

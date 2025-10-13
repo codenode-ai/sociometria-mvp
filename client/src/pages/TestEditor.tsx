@@ -11,8 +11,8 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useTests, type LikertQuestionDraft } from "@/hooks/useTests";
 import { LANGUAGE_OPTIONS } from "@/lib/constants";
-import { createDefaultInterpretationBands, getLikertLabels } from "@/lib/tests";
-import type { PsychologicalTest, SupportedLanguage } from "@shared/schema";
+import { OPTION_WEIGHT_VALUES, createDefaultInterpretationBands, getOptionLabels } from "@/lib/tests";
+import type { OptionWeight, PsychologicalTest, SupportedLanguage } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 import { useSession } from "@/hooks/useSession";
 
@@ -27,11 +27,23 @@ const STATUS_OPTIONS: Array<{
   { value: "archived", labelKey: "tests.status.archived" },
 ];
 
+type OptionState = {
+  id?: string;
+  weight: OptionWeight;
+  label: string;
+};
+
 type QuestionState = {
   id?: string;
   prompt: string;
   dimension: string;
   helpText: string;
+  options: OptionState[];
+};
+
+type QuestionErrorState = {
+  prompt?: boolean;
+  options?: boolean;
 };
 
 type FormErrors = {
@@ -39,7 +51,7 @@ type FormErrors = {
   description?: string;
   estimatedDuration?: string;
   historyNote?: string;
-  questions?: boolean[];
+  questions?: QuestionErrorState[];
 };
 
 interface TestEditorProps {
@@ -48,23 +60,71 @@ interface TestEditorProps {
   };
 }
 
-function createEmptyQuestion(): QuestionState {
+function createEmptyQuestion(optionLabels: Record<OptionWeight, string>): QuestionState {
   return {
     prompt: "",
     dimension: "",
     helpText: "",
+    options: OPTION_WEIGHT_VALUES.map<OptionState>((weight) => ({
+      weight,
+      label: optionLabels[weight] ?? "",
+    })),
   };
 }
 
-function ensureQuestionArray(base: QuestionState[]): QuestionState[] {
-  const next = [...base];
-  if (next.length > QUESTION_COUNT) {
-    return next.slice(0, QUESTION_COUNT);
+function ensureOptionArray(
+  options: OptionState[] | undefined,
+  optionLabels: Record<OptionWeight, string>,
+): OptionState[] {
+  const normalized: OptionState[] = [];
+  const usedWeights = new Set<OptionWeight>();
+
+  if (options && options.length > 0) {
+    options.slice(0, OPTION_WEIGHT_VALUES.length).forEach((option) => {
+      const next: OptionState = { ...option };
+      const desiredWeight = OPTION_WEIGHT_VALUES.includes(next.weight) ? next.weight : undefined;
+      let resolvedWeight: OptionWeight | undefined =
+        desiredWeight && !usedWeights.has(desiredWeight) ? desiredWeight : undefined;
+      if (!resolvedWeight) {
+        resolvedWeight = OPTION_WEIGHT_VALUES.find((candidate) => !usedWeights.has(candidate)) ?? OPTION_WEIGHT_VALUES[0];
+      }
+      usedWeights.add(resolvedWeight);
+      normalized.push({
+        id: next.id,
+        weight: resolvedWeight,
+        label: next.label?.trim() || optionLabels[resolvedWeight] || "",
+      });
+    });
   }
-  while (next.length < QUESTION_COUNT) {
-    next.push(createEmptyQuestion());
+
+  for (const weight of OPTION_WEIGHT_VALUES) {
+    if (usedWeights.has(weight)) {
+      continue;
+    }
+    normalized.push({
+      weight,
+      label: optionLabels[weight] ?? "",
+    });
+    usedWeights.add(weight);
   }
-  return next;
+
+  return normalized.slice(0, OPTION_WEIGHT_VALUES.length);
+}
+
+function ensureQuestionArray(
+  base: QuestionState[],
+  optionLabels: Record<OptionWeight, string>,
+): QuestionState[] {
+  const normalized = base.slice(0, QUESTION_COUNT).map<QuestionState>((question) => ({
+    ...question,
+    options: ensureOptionArray(question.options, optionLabels),
+  }));
+
+  while (normalized.length < QUESTION_COUNT) {
+    normalized.push(createEmptyQuestion(optionLabels));
+  }
+
+  return normalized;
 }
 
 export default function TestEditor({ params }: TestEditorProps) {
@@ -93,6 +153,11 @@ export default function TestEditor({ params }: TestEditorProps) {
 
   const initialLanguage = (i18n.language as SupportedLanguage) ?? "pt";
 
+const initialOptionLabels = useMemo(
+    () => getOptionLabels(i18n.getFixedT(initialLanguage)),
+    [i18n, initialLanguage],
+  );
+
   const [form, setForm] = useState(() => ({
     title: "",
     description: "",
@@ -101,7 +166,10 @@ export default function TestEditor({ params }: TestEditorProps) {
     tags: "",
     status: "draft" as Exclude<PsychologicalTest["status"], undefined>,
     historyNote: "",
-    questions: ensureQuestionArray(Array.from({ length: QUESTION_COUNT }, createEmptyQuestion)),
+    questions: ensureQuestionArray(
+      Array.from({ length: QUESTION_COUNT }, () => createEmptyQuestion(initialOptionLabels)),
+      initialOptionLabels,
+    ),
   }));
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -124,14 +192,20 @@ export default function TestEditor({ params }: TestEditorProps) {
           prompt: question.prompt,
           dimension: question.dimension ?? "",
           helpText: question.helpText ?? "",
+          options: question.options.map<OptionState>((option) => ({
+            id: option.id,
+            weight: option.weight,
+            label: option.label,
+          })),
         })),
+        getOptionLabels(i18n.getFixedT(existingTest.language)),
       ),
     });
     setErrors({});
   }, [existingTest, isEditMode]);
 
   const fixedT = useMemo(() => i18n.getFixedT(form.language), [form.language, i18n]);
-  const likertLabels = useMemo(() => getLikertLabels(fixedT), [fixedT]);
+  const optionLabels = useMemo(() => getOptionLabels(fixedT), [fixedT]);
   const interpretationBands = useMemo(() => createDefaultInterpretationBands(fixedT), [fixedT]);
 
   const handleFieldChange = (field: keyof typeof form, value: string) => {
@@ -155,6 +229,60 @@ export default function TestEditor({ params }: TestEditorProps) {
     });
   };
 
+
+const handleOptionLabelChange = (questionIndex: number, weight: OptionWeight, value: string) => {
+  setForm((prev) => {
+    const nextQuestions = prev.questions.slice();
+    const target = { ...nextQuestions[questionIndex] };
+    target.options = target.options.map((option) =>
+      option.weight === weight ? { ...option, label: value } : option,
+    );
+    nextQuestions[questionIndex] = target;
+    return {
+      ...prev,
+      questions: ensureQuestionArray(nextQuestions, optionLabels),
+    };
+  });
+};
+
+const handleOptionWeightChange = (
+  questionIndex: number,
+  optionIndex: number,
+  newWeight: OptionWeight,
+) => {
+  setForm((prev) => {
+    const nextQuestions = prev.questions.slice();
+    const target = { ...nextQuestions[questionIndex] };
+    const nextOptions = target.options.map((option) => ({ ...option }));
+    const current = nextOptions[optionIndex];
+    if (!current) {
+      return prev;
+    }
+
+    if (current.weight === newWeight) {
+      return prev;
+    }
+
+    const existingIndex = nextOptions.findIndex(
+      (option, idx) => idx !== optionIndex && option.weight === newWeight,
+    );
+
+    if (existingIndex !== -1) {
+      const swapWeight = current.weight;
+      nextOptions[existingIndex] = { ...nextOptions[existingIndex], weight: swapWeight };
+    }
+
+    nextOptions[optionIndex] = { ...current, weight: newWeight };
+    target.options = nextOptions;
+    nextQuestions[questionIndex] = target;
+
+    return {
+      ...prev,
+      questions: ensureQuestionArray(nextQuestions, optionLabels),
+    };
+  });
+};
+
   const parseTags = (raw: string): string[] | undefined => {
     const cleaned = raw
       .split(",")
@@ -169,7 +297,11 @@ export default function TestEditor({ params }: TestEditorProps) {
       prompt: question.prompt,
       dimension: question.dimension || undefined,
       helpText: question.helpText || undefined,
-      labels: { ...likertLabels },
+      options: question.options.map((option) => ({
+        id: option.id,
+        weight: option.weight,
+        label: option.label.trim() || optionLabels[option.weight],
+      })),
     }));
 
   const validate = () => {
@@ -193,8 +325,26 @@ export default function TestEditor({ params }: TestEditorProps) {
       nextErrors.historyNote = t("tests.builder.errors.historyNote");
     }
 
-    const questionErrors = form.questions.map((question) => question.prompt.trim().length === 0);
-    if (questionErrors.some(Boolean)) {
+    const questionErrors = form.questions.map<QuestionErrorState>(() => ({}));
+    let hasQuestionError = false;
+
+    form.questions.forEach((question, questionIndex) => {
+      const promptEmpty = question.prompt.trim().length === 0;
+      const labelMissing = question.options.some((option) => option.label.trim().length === 0);
+      const weights = question.options.map((option) => option.weight);
+      const hasDuplicateWeights = new Set(weights).size !== OPTION_WEIGHT_VALUES.length;
+
+      if (promptEmpty) {
+        questionErrors[questionIndex].prompt = true;
+        hasQuestionError = true;
+      }
+      if (labelMissing || hasDuplicateWeights) {
+        questionErrors[questionIndex].options = true;
+        hasQuestionError = true;
+      }
+    });
+
+    if (hasQuestionError) {
       nextErrors.questions = questionErrors;
     }
 
@@ -413,63 +563,115 @@ export default function TestEditor({ params }: TestEditorProps) {
         </CardHeader>
         <CardContent className="space-y-6">
           <p className="text-sm text-muted-foreground flex items-center gap-2">
-            <Badge variant="outline">Likert 1-5</Badge>
+            <Badge variant="outline">{t("tests.builder.badge.weightedScale", { defaultValue: "Peso 1-4" })}</Badge>
             <span>{t("tests.builder.helpers.questionsIntro")}</span>
           </p>
+
+
+
           <div className="grid gap-6">
-            {form.questions.map((question, index) => (
-              <div key={question.id ?? index} className="rounded-lg border p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">{t("tests.builder.questionTitle", { index: index + 1 })}</h3>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor={`question-${index}-prompt`}>
-                    {t("tests.builder.fields.questionPrompt")}
-                  </Label>
-                  <Textarea
-                    id={`question-${index}-prompt`}
-                    rows={3}
-                    value={question.prompt}
-                    onChange={(event) => handleQuestionChange(index, "prompt", event.target.value)}
-                    placeholder={t("tests.builder.placeholders.questionPrompt")}
-                  />
-                  {errors.questions?.[index] && (
-                    <p className="text-sm text-destructive">
-                      {t("tests.builder.errors.questionPrompt", { index: index + 1 })}
+            {form.questions.map((question, index) => {
+              const questionError = errors.questions?.[index];
+              return (
+                <div key={question.id ?? index} className="rounded-lg border p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">{t("tests.builder.questionTitle", { index: index + 1 })}</h3>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`question-${index}-prompt`}>
+                      {t("tests.builder.fields.questionPrompt")}
+                    </Label>
+                    <Textarea
+                      id={`question-${index}-prompt`}
+                      rows={3}
+                      value={question.prompt}
+                      onChange={(event) => handleQuestionChange(index, "prompt", event.target.value)}
+                      placeholder={t("tests.builder.placeholders.questionPrompt")}
+                    />
+                    {questionError?.prompt && (
+                      <p className="text-sm text-destructive">
+                        {t("tests.builder.errors.questionPrompt", { index: index + 1 })}
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor={`question-${index}-dimension`}>
+                        {t("tests.builder.fields.questionDimension")}
+                      </Label>
+                      <Input
+                        id={`question-${index}-dimension`}
+                        value={question.dimension}
+                        onChange={(event) => handleQuestionChange(index, "dimension", event.target.value)}
+                        placeholder={t("tests.builder.placeholders.questionDimension")}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`question-${index}-help`}>
+                        {t("tests.builder.fields.questionHelp")}
+                      </Label>
+                      <Input
+                        id={`question-${index}-help`}
+                        value={question.helpText}
+                        onChange={(event) => handleQuestionChange(index, "helpText", event.target.value)}
+                        placeholder={t("tests.builder.placeholders.questionHelp")}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("tests.builder.fields.questionOptions")}</Label>
+                    <div className="space-y-2">
+                      {question.options.map((option, optionIndex) => (
+                        <div
+                          key={`${question.id ?? index}-${optionIndex}`}
+                          className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:gap-3"
+                        >
+                          <div className="flex items-center gap-2 sm:w-44">
+                            <Select
+                              value={String(option.weight)}
+                              onValueChange={(value) =>
+                                handleOptionWeightChange(index, optionIndex, Number(value) as OptionWeight)
+                              }
+                            >
+                              <SelectTrigger className="w-full sm:w-40">
+                                <SelectValue
+                                  placeholder={t("tests.builder.option.weightBadge", { weight: option.weight })}
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {OPTION_WEIGHT_VALUES.map((weight) => (
+                                  <SelectItem key={weight} value={String(weight)}>
+                                    {t("tests.builder.option.weightBadge", { weight })}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Input
+                            value={option.label}
+                            onChange={(event) => handleOptionLabelChange(index, option.weight, event.target.value)}
+                            placeholder={optionLabels[option.weight]}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    {questionError?.options && (
+                      <p className="text-sm text-destructive">
+                        {t("tests.builder.errors.questionOptions", { index: index + 1 })}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {t("tests.builder.helpers.questionOptions", { defaultValue: "Garanta que a alternativa de peso 4 represente o comportamento mais alinhado." })}
                     </p>
-                  )}
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor={`question-${index}-dimension`}>
-                      {t("tests.builder.fields.questionDimension")}
-                    </Label>
-                    <Input
-                      id={`question-${index}-dimension`}
-                      value={question.dimension}
-                      onChange={(event) => handleQuestionChange(index, "dimension", event.target.value)}
-                      placeholder={t("tests.builder.placeholders.questionDimension")}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor={`question-${index}-help`}>
-                      {t("tests.builder.fields.questionHelp")}
-                    </Label>
-                    <Input
-                      id={`question-${index}-help`}
-                      value={question.helpText}
-                      onChange={(event) => handleQuestionChange(index, "helpText", event.target.value)}
-                      placeholder={t("tests.builder.placeholders.questionHelp")}
-                    />
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
+
+
         </CardContent>
       </Card>
     </form>
   );
 }
-
-

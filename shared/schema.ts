@@ -46,19 +46,24 @@ export const insertHouseSchema = z.object({
 
 export type InsertHouse = z.infer<typeof insertHouseSchema>;
 
-export interface LikertQuestion {
+export type OptionWeight = 1 | 2 | 3 | 4;
+
+export interface QuestionOption {
+  id: string;
+  label: string;
+  weight: OptionWeight;
+}
+
+export interface WeightedQuestion {
   id: string;
   prompt: string;
   helpText?: string;
   dimension?: string;
-  reverseScore?: boolean;
-  scaleMin: number;
-  scaleMax: number;
-  labels?: Record<number, string>;
-  weight?: number;
+  options: QuestionOption[];
 }
 
-export interface LikertBand {
+
+export interface ScoreBand {
   id: string;
   label: string;
   min: number;
@@ -81,8 +86,8 @@ export interface PsychologicalTest {
   availableLanguages: SupportedLanguage[];
   title: string;
   description: string;
-  questions: LikertQuestion[];
-  interpretationBands: LikertBand[];
+  questions: WeightedQuestion[];
+  interpretationBands: ScoreBand[];
   tags?: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -158,14 +163,15 @@ export interface AssessmentAssignment {
   metadata?: Record<string, unknown>;
 }
 
-export interface LikertResponse {
+export interface WeightedResponse {
   questionId: string;
-  value: number;
+  optionId: string;
+  weight: OptionWeight;
 }
 
 export interface AssessmentResponseSet {
   testId: string;
-  responses: LikertResponse[];
+  responses: WeightedResponse[];
   startedAt: Date;
   submittedAt?: Date;
   durationMs?: number;
@@ -210,4 +216,92 @@ export interface PerformanceReport {
   averageRating: number;
   bestPartner?: string;
   improvement: "high" | "medium" | "low";
+}
+export type SociometryQuestionKey =
+  | "preferWorkWith"
+  | "avoidWorkWith"
+  | "problemSolver"
+  | "moodKeeper"
+  | "hardHouseFirstPick";
+
+export interface SociometryQuestion {
+  id: SociometryQuestionKey;
+  prompt: string;
+  helperText?: string;
+  minSelections?: number;
+  maxSelections?: number;
+  allowSelfSelection?: boolean;
+}
+
+export interface SociometryForm {
+  id: string;
+  version: number;
+  title: string;
+  description?: string;
+  questions: SociometryQuestion[];
+  defaultLanguage: SupportedLanguage;
+  status: "draft" | "active" | "archived";
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type SociometryLinkStatus = "pending" | "completed" | "expired";
+
+export interface SociometryLink {
+  id: string;
+  formId: string;
+  collaboratorId: string;
+  code: string;
+  status: SociometryLinkStatus;
+  url: string;
+  language: SupportedLanguage;
+  createdAt: Date;
+  expiresAt?: Date;
+  completedAt?: Date;
+  lastReminderAt?: Date;
+}
+
+export interface SociometrySelection {
+  targetEmployeeId: string;
+  weight?: number;
+  notes?: string;
+}
+
+export interface SociometryResponse {
+  id: string;
+  linkId: string;
+  collaboratorId: string;
+  formId: string;
+  questionId: SociometryQuestionKey;
+  selections: SociometrySelection[];
+  createdAt: Date;
+}
+
+export interface SociometryAggregatedEdge {
+  fromEmployeeId: string;
+  toEmployeeId: string;
+  weight: number;
+  questionId: SociometryQuestionKey;
+}
+
+export interface SociometryRoleIndicator {
+  employeeId: string;
+  role: Exclude<SociometryQuestionKey, "preferWorkWith" | "avoidWorkWith">;
+  count: number;
+}
+
+export interface SociometryNeutralIndicator {
+  employeeId: string;
+  neutralityPercentage: number;
+  neutralPairCount: number;
+}
+
+export interface SociometrySnapshot {
+  id: string;
+  formId: string;
+  generatedAt: Date;
+  preferredEdges: SociometryAggregatedEdge[];
+  avoidanceEdges: SociometryAggregatedEdge[];
+  roleIndicators: SociometryRoleIndicator[];
+  neutralIndicators: SociometryNeutralIndicator[];
 }

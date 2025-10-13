@@ -3,379 +3,339 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import SociometryGraph from "@/components/SociometryGraph";
-import { useEmployees } from "@/hooks/useEmployees";
-import { useToast } from "@/hooks/use-toast";
-import type { Employee } from "@shared/schema";
+import { useSociometry } from "@/hooks/useSociometry";
+import { mockSociometryEmployees } from "@/lib/mock/sociometry-data";
+import type { Employee, SociometryQuestionKey } from "@shared/schema";
 
-type RelationshipsState = Record<string, string[]>;
+const FILTER_OPTIONS = [
+  { value: "all", label: "sociometry.filters.all" },
+  { value: "onlyPending", label: "sociometry.filters.pending" },
+  { value: "onlyCompleted", label: "sociometry.filters.completed" },
+] as const;
 
-function buildBaseMap(employees: Employee[], key: "preferences" | "avoidances"): RelationshipsState {
-  return employees.reduce<RelationshipsState>((acc, employee) => {
-    acc[employee.id] = [...(employee[key] ?? [])];
-    return acc;
-  }, {});
+type FilterValue = (typeof FILTER_OPTIONS)[number]["value"];
+
+const FILTER_LABELS: Record<FilterValue, string> = {
+  all: "Todas as colaboradoras",
+  onlyPending: "Somente pendentes",
+  onlyCompleted: "Somente concluídas",
+};
+
+function buildEdgeMap(edges: Array<{ fromEmployeeId: string; toEmployeeId: string }>) {
+  const map: Record<string, string[]> = {};
+  edges.forEach((edge) => {
+    if (!map[edge.fromEmployeeId]) {
+      map[edge.fromEmployeeId] = [];
+    }
+    if (!map[edge.fromEmployeeId].includes(edge.toEmployeeId)) {
+      map[edge.fromEmployeeId].push(edge.toEmployeeId);
+    }
+  });
+  return map;
 }
 
 export default function Sociometria() {
   const { t } = useTranslation();
-  const { toast } = useToast();
-  const {
-    employees,
-    isLoading,
-    isError,
-    updateEmployee,
-  } = useEmployees();
+  const { links, responses, snapshot, employees } = useSociometry();
+  const [selectedFilter, setSelectedFilter] = useState<FilterValue>("all");
 
-  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
-  const [editedPreferences, setEditedPreferences] = useState<RelationshipsState>({});
-  const [editedAvoidances, setEditedAvoidances] = useState<RelationshipsState>({});
-  const [isSaving, setIsSaving] = useState(false);
-
-  const basePreferences = useMemo(
-    () => buildBaseMap(employees, "preferences"),
-    [employees],
-  );
-  const baseAvoidances = useMemo(
-    () => buildBaseMap(employees, "avoidances"),
-    [employees],
-  );
-
-  const combinedPreferences = useMemo(() => {
-    const merged: RelationshipsState = { ...basePreferences };
-    Object.entries(editedPreferences).forEach(([key, value]) => {
-      merged[key] = value;
-    });
-    return merged;
-  }, [basePreferences, editedPreferences]);
-
-  const combinedAvoidances = useMemo(() => {
-    const merged: RelationshipsState = { ...baseAvoidances };
-    Object.entries(editedAvoidances).forEach(([key, value]) => {
-      merged[key] = value;
-    });
-    return merged;
-  }, [baseAvoidances, editedAvoidances]);
-
-  const employeesById = useMemo(
-    () => new Map(employees.map((employee) => [employee.id, employee])),
-    [employees],
-  );
-
-  const strongPairs = useMemo(() => {
-    const pairs: { from: string; to: string }[] = [];
-    const seen = new Set<string>();
-
-    Object.entries(combinedPreferences).forEach(([employeeId, prefs]) => {
-      prefs.forEach((targetId) => {
-        if (combinedPreferences[targetId]?.includes(employeeId)) {
-          const [a, b] = [employeeId, targetId].sort();
-          const key = `${a}-${b}`;
-          if (seen.has(key)) return;
-          const from = employeesById.get(employeeId);
-          const to = employeesById.get(targetId);
-          if (from && to) {
-            pairs.push({ from: from.name, to: to.name });
-            seen.add(key);
-          }
-        }
-      });
-    });
-
-    return pairs;
-  }, [combinedPreferences, employeesById]);
-
-  const problemPairs = useMemo(() => {
-    const pairs: { from: string; to: string }[] = [];
-
-    Object.entries(combinedAvoidances).forEach(([employeeId, avoids]) => {
-      const from = employeesById.get(employeeId);
-      if (!from) return;
-      avoids.forEach((targetId) => {
-        const to = employeesById.get(targetId);
-        if (to) {
-          pairs.push({ from: from.name, to: to.name });
-        }
-      });
-    });
-
-    return pairs;
-  }, [combinedAvoidances, employeesById]);
-
-  const selectableEmployees = useMemo(
-    () => employees.filter((employee) => employee.id !== selectedEmployee),
-    [employees, selectedEmployee],
-  );
-
-  const handlePreferenceChange = (targetId: string, checked: boolean) => {
-    if (!selectedEmployee) return;
-    setEditedPreferences((prev) => {
-      const current = prev[selectedEmployee] ?? combinedPreferences[selectedEmployee] ?? [];
-      const next = checked
-        ? current.includes(targetId)
-          ? current
-          : [...current, targetId]
-        : current.filter((id) => id !== targetId);
-      return { ...prev, [selectedEmployee]: next };
-    });
-  };
-
-  const handleAvoidanceChange = (targetId: string, checked: boolean) => {
-    if (!selectedEmployee) return;
-    setEditedAvoidances((prev) => {
-      const current = prev[selectedEmployee] ?? combinedAvoidances[selectedEmployee] ?? [];
-      const next = checked
-        ? current.includes(targetId)
-          ? current
-          : [...current, targetId]
-        : current.filter((id) => id !== targetId);
-      return { ...prev, [selectedEmployee]: next };
-    });
-  };
-
-  const saveRelationships = async () => {
-    if (!selectedEmployee) return;
-    setIsSaving(true);
-    try {
-      await updateEmployee({
-        id: selectedEmployee,
-        preferences: combinedPreferences[selectedEmployee] ?? [],
-        avoidances: combinedAvoidances[selectedEmployee] ?? [],
-      });
-      toast({
-        title: t("sociometry.saveSuccessTitle", { defaultValue: "Preferencias salvas" }),
-        description: t("sociometry.saveSuccessDescription", {
-          defaultValue: "As relacoes foram atualizadas com sucesso.",
-        }),
-      });
-      setEditedPreferences((prev) => {
-        const next = { ...prev };
-        delete next[selectedEmployee];
-        return next;
-      });
-      setEditedAvoidances((prev) => {
-        const next = { ...prev };
-        delete next[selectedEmployee];
-        return next;
-      });
-    } catch (error) {
-      toast({
-        title: t("errors.genericTitle", { defaultValue: "Algo deu errado" }),
-        description:
-          error instanceof Error
-            ? error.message
-            : t("sociometry.saveErrorDescription", {
-                defaultValue: "Nao foi possivel atualizar as relacoes.",
-              }),
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
+  const activeLinkIds = useMemo(() => {
+    switch (selectedFilter) {
+      case "onlyPending":
+        return links.filter((link) => link.status === "pending").map((link) => link.id);
+      case "onlyCompleted":
+        return links.filter((link) => link.status === "completed").map((link) => link.id);
+      default:
+        return links.filter((link) => link.status !== "expired").map((link) => link.id);
     }
-  };
+  }, [links, selectedFilter]);
 
-  if (isError) {
-    return (
-      <div className="p-6" data-testid="page-sociometria-error">
-        <p className="text-destructive">
-          {t("sociometry.error", {
-            defaultValue: "Nao foi possivel carregar os dados de sociometria.",
-          })}
-        </p>
-      </div>
-    );
-  }
+  const filteredResponses = useMemo(
+    () => responses.filter((response) => activeLinkIds.includes(response.linkId)),
+    [responses, activeLinkIds],
+  );
 
-  if (isLoading) {
-    return (
-      <div className="p-6" data-testid="page-sociometria-loading">
-        <p className="text-muted-foreground">
-          {t("sociometry.loading", { defaultValue: "Carregando colaboradores..." })}
-        </p>
-      </div>
-    );
-  }
+  const employeesForGraph: Employee[] = useMemo(
+    () =>
+      employees.map((employee) => ({
+        id: employee.id,
+        name: employee.name,
+        role: employee.role as Employee["role"],
+        status: "active",
+        traits: [],
+      })),
+    [],
+  );
 
-  if (employees.length === 0) {
-    return (
-      <div className="p-6 space-y-4" data-testid="page-sociometria-empty">
-        <h1 className="text-3xl font-bold">{t("sociometry.title")}</h1>
-        <p className="text-muted-foreground">
-          {t("sociometry.emptyState", {
-            defaultValue: "Cadastre colaboradoras para visualizar as relacoes sociometricas.",
-          })}
-        </p>
-      </div>
-    );
-  }
+  const preferenceMap = useMemo(() => buildEdgeMap(snapshot.preferredEdges), [snapshot.preferredEdges]);
+  const avoidanceMap = useMemo(() => buildEdgeMap(snapshot.avoidanceEdges), [snapshot.avoidanceEdges]);
+
+  const topPreferred = useMemo(
+    () =>
+      [...snapshot.preferredEdges]
+        .sort((a, b) => b.weight - a.weight)
+        .slice(0, 5)
+        .map((edge) => ({
+          from: edge.fromEmployeeId,
+          to: edge.toEmployeeId,
+          weight: edge.weight,
+        })),
+    [snapshot.preferredEdges],
+  );
+
+  const topAvoidances = useMemo(
+    () =>
+      [...snapshot.avoidanceEdges]
+        .sort((a, b) => b.weight - a.weight)
+        .slice(0, 5)
+        .map((edge) => ({
+          from: edge.fromEmployeeId,
+          to: edge.toEmployeeId,
+          weight: edge.weight,
+        })),
+    [snapshot.avoidanceEdges],
+  );
+
+  const roleIndicators = useMemo(
+    () =>
+      [...snapshot.roleIndicators].sort((a, b) => b.count - a.count),
+    [snapshot.roleIndicators],
+  );
+
+  const neutralIndicators = useMemo(
+    () =>
+      [...snapshot.neutralIndicators].sort((a, b) => b.neutralityPercentage - a.neutralityPercentage),
+    [snapshot.neutralIndicators],
+  );
+
+  const employeeName = (id: string) =>
+    employees.find((employee) => employee.id === id)?.name ?? id;
+
+  const filteredLinkSet = useMemo(() => new Set(activeLinkIds), [activeLinkIds]);
+  const filteredLinks = useMemo(
+    () => links.filter((link) => filteredLinkSet.has(link.id)),
+    [links, filteredLinkSet],
+  );
+
+  const responsesByQuestion = useMemo(() => {
+    const map: Record<SociometryQuestionKey, number> = {
+      preferWorkWith: 0,
+      avoidWorkWith: 0,
+      problemSolver: 0,
+      moodKeeper: 0,
+      hardHouseFirstPick: 0,
+    };
+    filteredResponses.forEach((response) => {
+      map[response.questionId] += 1;
+    });
+    return map;
+  }, [filteredResponses]);
+
+  const collaboratorsWithResponses = filteredResponses.reduce((set, response) => {
+    set.add(response.collaboratorId);
+    return set;
+  }, new Set<string>());
+
+  const pendingCount = links.filter((link) => link.status === "pending").length;
+  const completedCount = links.filter((link) => link.status === "completed").length;
 
   return (
     <div className="p-6 space-y-6" data-testid="page-sociometria">
-      <div>
-        <h1 className="text-3xl font-bold">{t("sociometry.title")}</h1>
-        <p className="text-muted-foreground">{t("sociometry.subtitle")}</p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">{t("sociometry.title")}</h1>
+          <p className="text-muted-foreground">{t("sociometry.subtitle")}</p>
+        </div>
+        <Select value={selectedFilter} onValueChange={(value: FilterValue) => setSelectedFilter(value)}>
+          <SelectTrigger className="w-[240px]">
+            <SelectValue placeholder={t("sociometry.filters.placeholder", { defaultValue: "Filtrar convites" }) ?? "Filtrar convites"} />
+          </SelectTrigger>
+          <SelectContent>
+            {FILTER_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {t(option.label, { defaultValue: FILTER_LABELS[option.value] })}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("sociometry.configureCard.title")}</CardTitle>
+      <div className="grid gap-6 md:grid-cols-[320px_minmax(0,1fr)]">
+        <Card className="md:h-[620px]">
+          <CardHeader className="space-y-2">
+            <CardTitle className="text-base font-semibold">
+              {t("sociometry.invites.title", { defaultValue: "Status dos convites" })}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              {t("sociometry.invites.counter", { defaultValue: "{{total}} convites · {{pending}} pendentes · {{completed}} concluídos",
+                total: links.length,
+                pending: pendingCount,
+                completed: completedCount,
+              })}
+            </p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="employee-select">{t("sociometry.configureCard.employeeLabel")}</Label>
-              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger data-testid="select-employee">
-                  <SelectValue placeholder={t("sociometry.configureCard.employeePlaceholder")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name} ({t(`roles.${employee.role}`)})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedEmployee && (
-              <>
-                <div>
-                  <Label className="text-sm font-medium text-green-600">
-                    {t("sociometry.configureCard.prefersLabel")}
-                  </Label>
-                  <div className="mt-2 space-y-2">
-                    {selectableEmployees.map((employee) => (
-                      <div key={employee.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`pref-${employee.id}`}
-                          checked={(combinedPreferences[selectedEmployee] || []).includes(employee.id)}
-                          onCheckedChange={(checked) => handlePreferenceChange(employee.id, Boolean(checked))}
-                        />
-                        <Label htmlFor={`pref-${employee.id}`} className="text-sm">
-                          {employee.name}
-                          <Badge variant="outline" className="ml-2">
-                            {t(`roles.${employee.role}`)}
-                          </Badge>
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium text-red-600">
-                    {t("sociometry.configureCard.avoidsLabel")}
-                  </Label>
-                  <div className="mt-2 space-y-2">
-                    {selectableEmployees.map((employee) => (
-                      <div key={employee.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`avoid-${employee.id}`}
-                          checked={(combinedAvoidances[selectedEmployee] || []).includes(employee.id)}
-                          onCheckedChange={(checked) => handleAvoidanceChange(employee.id, Boolean(checked))}
-                        />
-                        <Label htmlFor={`avoid-${employee.id}`} className="text-sm">
-                          {employee.name}
-                          <Badge variant="outline" className="ml-2">
-                            {t(`roles.${employee.role}`)}
-                          </Badge>
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <Button
-                  onClick={saveRelationships}
-                  className="w-full"
-                  data-testid="button-save-relationships"
-                  disabled={isSaving}
+          <CardContent className="space-y-3">
+            {filteredLinks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t("sociometry.invites.empty", { defaultValue: "Nenhum convite corresponde ao filtro selecionado." })}
+              </p>
+            ) : (
+              filteredLinks.map((link) => (
+                <div
+                  key={link.id}
+                  className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
                 >
-                  {isSaving
-                    ? t("sociometry.saving", { defaultValue: "Salvando..." })
-                    : t("actions.saveRelationships")}
-                </Button>
-              </>
+                  <div>
+                    <p className="font-medium leading-tight">{employeeName(link.collaboratorId)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("sociometry.invites.created", { defaultValue: "Enviado em {{date}}",
+                        date: link.createdAt.toLocaleDateString(),
+                      })}
+                    </p>
+                  </div>
+                  <Badge variant={link.status === "completed" ? "secondary" : "outline"}>
+                    {t(`sociometry.invites.status.${link.status}`, { defaultValue: link.status === "completed" ? "Concluído" : link.status === "pending" ? "Pendente" : "Expirado" })}
+                  </Badge>
+                </div>
+              ))
             )}
+            <div className="pt-3 text-xs text-muted-foreground">
+              {t("sociometry.invites.responses", { defaultValue: "{{answered}} de {{total}} colaboradoras responderam",
+                answered: collaboratorsWithResponses.size,
+                total: links.length,
+              })}
+            </div>
           </CardContent>
         </Card>
 
-        <SociometryGraph
-          employees={employees}
-          preferences={combinedPreferences}
-          avoidances={combinedAvoidances}
-        />
+        <Card className="md:h-[620px]">
+          <CardHeader>
+            <CardTitle>{t("sociometry.graph.title", { defaultValue: "Rede sociométrica" })}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SociometryGraph
+              employees={employeesForGraph}
+              preferences={preferenceMap}
+              avoidances={avoidanceMap}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-green-600">{t("sociometry.strongPairs.title")}</CardTitle>
+            <CardTitle className="text-green-600">{t("sociometry.strongPairs.title", { defaultValue: "Pares preferenciais" })}</CardTitle>
           </CardHeader>
-          <CardContent>
-            {strongPairs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t("sociometry.strongPairs.empty", {
-                  defaultValue: "Nao ha pares com preferencia mutua registrados.",
-                })}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {strongPairs.map((pair, index) => (
-                  <div key={`${pair.from}-${pair.to}-${index}`} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                    <div>
-                      <p className="font-medium">
-                        {pair.from}
-                        <span className="mx-1">-&gt;</span>
-                        {pair.to}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="bg-green-100 text-green-700">
-                      {t("sociometry.strongPairs.badge")}
-                    </Badge>
-                  </div>
-                ))}
+          <CardContent className="space-y-3">
+            {topPreferred.map((edge, index) => (
+              <div key={`${edge.from}-${edge.to}`} className="flex items-center justify-between rounded-md border px-3 py-2">
+                <div>
+                  <p className="font-medium">
+                    {employeeName(edge.from)}
+                    <span className="mx-1">{t("sociometry.pairs.connector", { defaultValue: "e" })}</span>
+                    {employeeName(edge.to)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("sociometry.strongPairs.weight", { value: edge.weight, defaultValue: `${edge.weight} citações` })}
+                  </p>
+                </div>
+                <Badge variant="outline" className="bg-green-100 text-green-700">
+                  {t("sociometry.strongPairs.badge", { defaultValue: "Alta afinidade" })}
+                </Badge>
               </div>
-            )}
+            ))}
+            {topPreferred.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("sociometry.strongPairs.empty", { defaultValue: "Ainda não há dados de preferências." })}</p>
+            ) : null}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-red-600">{t("sociometry.problemPairs.title")}</CardTitle>
+            <CardTitle className="text-red-600">{t("sociometry.problemPairs.title", { defaultValue: "Pares a evitar" })}</CardTitle>
           </CardHeader>
-          <CardContent>
-            {problemPairs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t("sociometry.problemPairs.empty", {
-                  defaultValue: "Nao ha conflitos registrados entre colaboradoras.",
-                })}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {problemPairs.map((pair, index) => (
-                  <div key={`${pair.from}-${pair.to}-${index}`} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                    <div>
-                      <p className="font-medium">
-                        {pair.from}
-                        <span className="mx-1">-&gt;</span>
-                        {pair.to}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="bg-red-100 text-red-700">
-                      {t("sociometry.problemPairs.conflict")}
-                    </Badge>
-                  </div>
-                ))}
+          <CardContent className="space-y-3">
+            {topAvoidances.map((edge) => (
+              <div key={`${edge.from}-${edge.to}`} className="flex items-center justify-between rounded-md border px-3 py-2">
+                <div>
+                  <p className="font-medium">
+                    {employeeName(edge.from)}
+                    <span className="mx-1">{t("sociometry.pairs.connector", { defaultValue: "e" })}</span>
+                    {employeeName(edge.to)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("sociometry.problemPairs.weight", { value: edge.weight, defaultValue: `${edge.weight} citações negativas` })}
+                  </p>
+                </div>
+                <Badge variant="outline" className="bg-red-100 text-red-700">
+                  {t("sociometry.problemPairs.badge", { defaultValue: "Monitorar" })}
+                </Badge>
               </div>
-            )}
+            ))}
+            {topAvoidances.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("sociometry.problemPairs.empty", { defaultValue: "Nenhum conflito mapeado." })}</p>
+            ) : null}
           </CardContent>
         </Card>
       </div>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("sociometry.roles.title", { defaultValue: "Pessoas referência no time" })}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {roleIndicators.map((indicator) => (
+              <div key={`${indicator.employeeId}-${indicator.role}`} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                <div>
+                  <p className="font-medium leading-tight">{employeeName(indicator.employeeId)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t(`sociometry.roles.labels.${indicator.role}`, { defaultValue: indicator.role === "problemSolver" ? "Resolve problemas" : indicator.role === "moodKeeper" ? "Mantém o clima" : "Primeira escolha" })}
+                  </p>
+                </div>
+                <Badge variant="secondary">{indicator.count}</Badge>
+              </div>
+            ))}
+            {roleIndicators.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("sociometry.roles.empty", { defaultValue: "Nenhum destaque identificado ainda." })}</p>
+            ) : null}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("sociometry.neutral.title", { defaultValue: "Pessoas neutras" })}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {neutralIndicators.map((indicator) => (
+              <div key={`neutral-${indicator.employeeId}`} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                <div>
+                  <p className="font-medium leading-tight">{employeeName(indicator.employeeId)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("sociometry.neutral.details", {
+                      defaultValue: "Neutralidade {{percentage}}% - {{pairs}} pares neutros",
+                      percentage: indicator.neutralityPercentage,
+                      pairs: indicator.neutralPairCount,
+                    })}
+                  </p>
+                </div>
+                <Badge variant="outline" className="bg-slate-100 text-slate-700">{indicator.neutralityPercentage}%</Badge>
+              </div>
+            ))}
+            {neutralIndicators.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("sociometry.neutral.empty", { defaultValue: "Nenhuma neutralidade relevante identificada." })}</p>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+
     </div>
   );
 }
+
+
+
+
+
