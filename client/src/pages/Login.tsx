@@ -30,9 +30,9 @@ export default function Login() {
       if (!res.ok) {
         throw new Error("invalid");
       }
-      const data = (await res.json()) as { accessToken: string; role?: string };
+      const data = (await res.json()) as { accessToken: string; role?: string; displayName?: string | null };
       const role = data.role === "admin" ? "admin" : "user";
-      setSession(data.accessToken, role);
+      setSession(data.accessToken, role, data.displayName ?? null);
       toast({
         title: t("auth.loginSuccess", { defaultValue: "Bem-vindo" }),
       });

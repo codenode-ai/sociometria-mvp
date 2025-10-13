@@ -14,6 +14,7 @@ import { LANGUAGE_OPTIONS } from "@/lib/constants";
 import { createDefaultInterpretationBands, getLikertLabels } from "@/lib/tests";
 import type { PsychologicalTest, SupportedLanguage } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
+import { useSession } from "@/hooks/useSession";
 
 const QUESTION_COUNT = 10;
 
@@ -71,19 +72,24 @@ export default function TestEditor({ params }: TestEditorProps) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { createTest, updateTest, getTestById, isLoading } = useTests();
+  const { role } = useSession();
+  const isAdmin = role === "admin";
 
   const testId = params?.id;
   const isEditMode = Boolean(testId);
   const existingTest = testId ? getTestById(testId) : undefined;
 
   useEffect(() => {
+    if (!isAdmin) {
+      return;
+    }
     if (!isEditMode) {
       return;
     }
     if (!existingTest) {
       navigate("/testes");
     }
-  }, [existingTest, isEditMode, navigate]);
+  }, [existingTest, isAdmin, isEditMode, navigate]);
 
   const initialLanguage = (i18n.language as SupportedLanguage) ?? "pt";
 
@@ -247,6 +253,20 @@ export default function TestEditor({ params }: TestEditorProps) {
   const pageSubtitle = isEditMode
     ? t("tests.builder.pageSubtitleEdit")
     : t("tests.builder.pageSubtitleCreate");
+
+  if (!isAdmin) {
+    return (
+      <div className="p-6 space-y-4" data-testid="page-test-editor-forbidden">
+        <h1 className="text-2xl font-semibold">{t("tests.title")}</h1>
+        <p className="text-destructive">
+          {t("tests.editor.forbidden", { defaultValue: "Somente administradores podem criar ou editar testes." })}
+        </p>
+        <Button className="w-fit" variant="outline" onClick={() => navigate("/testes")}>
+          {t("actions.backToTests", { defaultValue: "Voltar para testes" })}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <form className="p-6 space-y-6" onSubmit={handleSubmit} data-testid="page-test-editor">

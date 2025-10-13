@@ -1,7 +1,7 @@
 ﻿DO 
 DECLARE
   v_user_record auth.users;
-  v_email text := 'admin@sociometria.dev';
+  v_email text := 'contato@codenode.com.br';
   v_password text := 'AdminTemp123!';
 BEGIN
   SELECT * INTO v_user_record

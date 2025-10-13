@@ -1,4 +1,4 @@
-import { Home, Users, Building2, FileText, ClipboardList, Network, BarChart3 } from "lucide-react";
+import { Home, Users, Building2, FileText, ClipboardList, Network, BarChart3, LogOut } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -10,8 +10,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
+  SidebarFooter,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { useTranslation } from "react-i18next";
+import { useSession } from "@/hooks/useSession";
+import { Button } from "@/components/ui/button";
 
 const menuItems = [
   {
@@ -54,6 +58,22 @@ const menuItems = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { t } = useTranslation();
+  const [, navigate] = useLocation();
+  const { userName, role, signOut } = useSession();
+
+  const roleLabel =
+    role === "admin"
+      ? t("session.roles.admin", { defaultValue: "Administrador" })
+      : t("session.roles.user", { defaultValue: "Empresa" });
+  const displayName =
+    userName && userName.trim().length > 0
+      ? userName
+      : t("session.userPlaceholder", { defaultValue: "Usuario" });
+
+  const handleSignOut = () => {
+    signOut();
+    navigate("/login");
+  };
 
   return (
     <Sidebar data-testid="sidebar-main">
@@ -90,7 +110,26 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarSeparator />
+      <SidebarFooter className="p-4">
+        <div className="rounded-lg border border-sidebar-border bg-sidebar-accent/10 p-4">
+          <p className="text-sm font-semibold" data-testid="sidebar-user-name">
+            {displayName}
+          </p>
+          <p className="text-xs text-muted-foreground" data-testid="sidebar-user-role">
+            {roleLabel}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="mt-3 w-full justify-start gap-2"
+          onClick={handleSignOut}
+          data-testid="button-sign-out"
+        >
+          <LogOut className="h-4 w-4" />
+          {t("actions.signOut", { defaultValue: "Sair" })}
+        </Button>
+      </SidebarFooter>
     </Sidebar>
   );
 }
-

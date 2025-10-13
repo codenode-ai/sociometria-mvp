@@ -43,7 +43,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useAssessmentsData } from "@/hooks/useAssessments";
-import { cn, slugify } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type {
   Assessment,
   AssessmentAssignment,
@@ -86,13 +86,6 @@ type GenerateLinkPayload = {
   expiresAt?: Date | null;
 };
 
-type AssignmentPayload = {
-  assigneeName: string;
-  assigneeId: string;
-  language: SupportedLanguage;
-  linkId: string;
-};
-
 type UpdateAssessmentPayload = {
   name: string;
   description?: string;
@@ -118,7 +111,6 @@ export default function Avaliacoes() {
     renewLink,
     markLinkExpired,
     regenerateLink,
-    addAssignment,
     updateAssignmentDetails,
     removeLink,
     removeAssignment,
@@ -346,19 +338,6 @@ export default function Avaliacoes() {
     [generateLink, t, toast],
   );
 
-  const handleAddAssignment = useCallback(
-    (assessmentId: string, payload: AssignmentPayload) => {
-      addAssignment({
-        assessmentId,
-        assigneeId: payload.assigneeId,
-        assigneeName: payload.assigneeName,
-        language: payload.language,
-        linkId: payload.linkId,
-      });
-      toast({ description: t("assessments.toasts.assignmentCreated") });
-    },
-    [addAssignment, t, toast],
-  );
 
   const handleAssignmentStatusChange = useCallback(
     (assignmentId: string, status: AssessmentAssignmentStatus) => {
@@ -763,11 +742,12 @@ export default function Avaliacoes() {
                     <div className="flex flex-col gap-4 p-6">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <h3 className="text-sm font-semibold">{t("assessments.assignments.title")}</h3>
-                        <AddAssignmentDialog
-                          availableLinks={selectedLinks}
-                          defaultLanguage={selectedAssessment.defaultLanguage}
-                          onAdd={(payload) => handleAddAssignment(selectedAssessment.id, payload)}
-                        />
+                        <p className="text-xs text-muted-foreground">
+                          {t("assessments.assignments.autoUpdate", {
+                            defaultValue:
+                              "Atualizado automaticamente conforme o envio dos links e as respostas das colaboradoras.",
+                          })}
+                        </p>
                       </div>
                       {selectedAssignments.length === 0 ? (
                         <p className="text-sm text-muted-foreground">{t("assessments.assignments.empty")}</p>
@@ -1508,112 +1488,6 @@ function GenerateLinkDialog({ assessment, onGenerate }: GenerateLinkDialogProps)
               {t("assessments.modals.create.cancel")}
             </Button>
             <Button type="submit">{t("assessments.modals.link.submit")}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-interface AddAssignmentDialogProps {
-  availableLinks: AssessmentLink[];
-  defaultLanguage: SupportedLanguage;
-  onAdd: (payload: AssignmentPayload) => void;
-}
-
-function AddAssignmentDialog({ availableLinks, defaultLanguage, onAdd }: AddAssignmentDialogProps) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [language, setLanguage] = useState<SupportedLanguage>(defaultLanguage);
-  const [linkId, setLinkId] = useState<string>(availableLinks[0]?.id ?? "");
-
-  useEffect(() => {
-    if (open) {
-      setLanguage(defaultLanguage);
-      setLinkId(availableLinks[0]?.id ?? "");
-    }
-  }, [availableLinks, defaultLanguage, open]);
-
-  const handleSubmit = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      const trimmed = name.trim();
-      if (!trimmed || !linkId) {
-        return;
-      }
-      onAdd({
-        assigneeName: trimmed,
-        assigneeId: slugify(trimmed) || `colab-${Date.now().toString(36)}`,
-        language,
-        linkId,
-      });
-      setName("");
-      setOpen(false);
-    },
-    [language, linkId, name, onAdd],
-  );
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" disabled={availableLinks.length === 0}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t("assessments.assignments.add")}
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("assessments.modals.assignment.title")}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="assignment-name">{t("assessments.modals.assignment.collaboratorLabel")}</Label>
-            <Input
-              id="assignment-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder={t("assessments.modals.assignment.collaboratorPlaceholder") ?? ""}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>{t("assessments.modals.assignment.languageLabel")}</Label>
-              <Select value={language} onValueChange={(value: SupportedLanguage) => setLanguage(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {languageOptions.map((lang) => (
-                    <SelectItem key={lang} value={lang}>
-                      {t(`tests.languages.${lang}`, { defaultValue: lang.toUpperCase() })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t("assessments.modals.assignment.linkLabel")}</Label>
-              <Select value={linkId} onValueChange={setLinkId}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableLinks.map((link) => (
-                    <SelectItem key={link.id} value={link.id}>
-                      {link.code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              {t("assessments.modals.create.cancel")}
-            </Button>
-            <Button type="submit" disabled={availableLinks.length === 0}>
-              {t("assessments.modals.assignment.submit")}
-            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

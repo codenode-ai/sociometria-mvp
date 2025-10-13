@@ -94,27 +94,33 @@ export default function TestCard({ test, onEdit, onDelete, className }: TestCard
           </span>
         </div>
       </CardContent>
-      <CardFooter className="mt-auto flex items-center justify-between gap-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onEdit?.(test.id)}
-          data-testid={`button-edit-test-${test.id}`}
-        >
-          <PencilLine className="w-4 h-4 mr-2" />
-          {t("tests.card.actions.edit")}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-destructive hover:text-destructive"
-          onClick={() => onDelete?.(test.id)}
-          data-testid={`button-delete-test-${test.id}`}
-        >
-          <Trash2 className="w-4 h-4 mr-2" />
-          {t("tests.card.actions.delete")}
-        </Button>
-      </CardFooter>
+      {(onEdit || onDelete) && (
+        <CardFooter className="mt-auto flex items-center justify-between gap-3">
+          {onEdit ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onEdit(test.id)}
+              data-testid={`button-edit-test-${test.id}`}
+            >
+              <PencilLine className="w-4 h-4 mr-2" />
+              {t("tests.card.actions.edit")}
+            </Button>
+          ) : null}
+          {onDelete ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={() => onDelete(test.id)}
+              data-testid={`button-delete-test-${test.id}`}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {t("tests.card.actions.delete")}
+            </Button>
+          ) : null}
+        </CardFooter>
+      )}
     </Card>
   );
 }

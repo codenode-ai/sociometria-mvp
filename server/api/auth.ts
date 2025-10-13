@@ -35,11 +35,22 @@ authRouter.post("/login", async (req, res, next) => {
 
     const { data: profile } = await supabaseAdmin
       .from("user_profiles")
-      .select("role")
+      .select("role, display_name")
       .eq("user_id", data.user.id)
       .single();
 
-    return res.json({ accessToken: data.session.access_token, role: profile?.role ?? "user" });
+    const displayName =
+      profile?.display_name ??
+      (data.user.user_metadata?.display_name as string | undefined) ??
+      data.user.email ??
+      null;
+
+    return res.json({
+      accessToken: data.session.access_token,
+      role: profile?.role ?? "user",
+      displayName,
+      email: data.user.email,
+    });
   } catch (error) {
     next(error);
   }
@@ -86,9 +97,17 @@ authRouter.post("/register", async (req, res, next) => {
       .eq("user_id", createData.user.id)
       .single();
 
+    const displayNameResponse =
+      displayName ??
+      (createData.user.user_metadata?.display_name as string | undefined) ??
+      createData.user.email ??
+      null;
+
     return res.status(201).json({
       accessToken: signInData.session.access_token,
       role: profile?.role ?? "user",
+      displayName: displayNameResponse,
+      email: createData.user.email,
     });
   } catch (error) {
     next(error);

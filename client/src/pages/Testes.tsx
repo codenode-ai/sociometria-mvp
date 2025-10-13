@@ -7,6 +7,7 @@ import { Eraser, Plus, Search } from "lucide-react";
 import TestCard from "@/components/TestCard";
 import { useTests } from "@/hooks/useTests";
 import { useToast } from "@/hooks/use-toast";
+import { useSession } from "@/hooks/useSession";
 
 const normalizeText = (value: string) =>
   value
@@ -20,6 +21,8 @@ export default function Testes() {
   const { toast } = useToast();
   const { tests, isLoading, isError, deleteTest } = useTests();
   const [searchTerm, setSearchTerm] = useState("");
+  const { role } = useSession();
+  const isAdmin = role === "admin";
 
   const filteredTests = useMemo(() => {
     const term = normalizeText(searchTerm);
@@ -36,10 +39,12 @@ export default function Testes() {
   }, [tests, searchTerm]);
 
   const handleEditTest = (id: string) => {
+    if (!isAdmin) return;
     navigate(`/testes/${id}/editar`);
   };
 
   const handleDeleteTest = async (id: string) => {
+    if (!isAdmin) return;
     const test = tests.find((item) => item.id === id);
     try {
       await deleteTest(id);
@@ -89,12 +94,14 @@ export default function Testes() {
             <Eraser className="w-4 h-4 mr-2" />
             {t("tests.actions.clearFilters")}
           </Button>
-          <Button asChild data-testid="button-create-test">
-            <Link href="/testes/novo" className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              {t("actions.addTest")}
-            </Link>
-          </Button>
+          {isAdmin && (
+            <Button asChild data-testid="button-create-test">
+              <Link href="/testes/novo" className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                {t("actions.addTest")}
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -119,8 +126,8 @@ export default function Testes() {
           <TestCard
             key={test.id}
             test={test}
-            onEdit={handleEditTest}
-            onDelete={handleDeleteTest}
+            onEdit={isAdmin ? handleEditTest : undefined}
+            onDelete={isAdmin ? handleDeleteTest : undefined}
           />
         ))}
       </div>

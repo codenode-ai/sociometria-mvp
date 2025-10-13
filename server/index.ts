@@ -90,10 +90,10 @@ async function findAvailablePort(preferredPort: number): Promise<number> {
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
+  // Other ports are firewalled. Default to 5001 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const preferredPort = parseInt(process.env.PORT || "5000", 10);
+  const preferredPort = parseInt(process.env.PORT || "5001", 10);
   const port = await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {

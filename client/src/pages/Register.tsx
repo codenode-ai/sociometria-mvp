@@ -49,6 +49,7 @@ export default function Register() {
         accessToken?: string;
         role?: string;
         message?: string;
+        displayName?: string | null;
       };
 
       if (!res.ok) {
@@ -57,7 +58,7 @@ export default function Register() {
 
       if (data.accessToken) {
         const role = data.role === "admin" ? "admin" : "user";
-        setSession(data.accessToken, role);
+        setSession(data.accessToken, role, data.displayName ?? displayName.trim());
         toast({
           title: t("auth.registerSuccess", { defaultValue: "Conta criada com sucesso" }),
           description: t("auth.registerRedirect", { defaultValue: "Bem-vindo(a) a Sociometria" }),

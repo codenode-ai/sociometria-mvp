@@ -122,14 +122,6 @@ type UpdateAssessmentInput = {
   estimatedDurationMinutes?: number;
 };
 
-type AddAssignmentInput = {
-  assessmentId: string;
-  assigneeId: string;
-  assigneeName: string;
-  language: SupportedLanguage;
-  linkId: string;
-};
-
 type UpdateAssignmentStatusInput = {
   assignmentId: string;
   status: AssessmentAssignmentStatus;
@@ -460,39 +452,6 @@ export function useAssessmentsData() {
     [getAssessment],
   );
 
-  const addAssignment = useCallback(
-    ({ assessmentId, assigneeId, assigneeName, language, linkId }: AddAssignmentInput) => {
-      const now = new Date();
-      const fallbackId = assigneeId.trim() || slugify(assigneeName) || `colab-${Date.now().toString(36)}`;
-
-      const newAssignment: AssessmentAssignment = {
-        id: generateId("assignment"),
-        assessmentId,
-        assigneeId: fallbackId,
-        linkId,
-        language,
-        status: "pending",
-        progress: {
-          currentTestId: undefined,
-          currentQuestionId: undefined,
-          completedTests: [],
-          percentage: 0,
-        },
-        attempt: 1,
-        metadata: {
-          assigneeName,
-        },
-        startedAt: undefined,
-        completedAt: undefined,
-        lastActivityAt: now,
-      };
-
-      setAssignments((prev) => [newAssignment, ...prev]);
-      return newAssignment;
-    },
-    [],
-  );
-
   const updateAssignmentStatus = useCallback(
     ({ assignmentId, status, progressPercentage }: UpdateAssignmentStatusInput) => {
       setAssignments((prev) =>
@@ -541,14 +500,13 @@ export function useAssessmentsData() {
     createAssessment,
     duplicateAssessment,
     updateAssessmentDetails,
+    updateAssessmentStatus,
     updateLinkDetails,
     renewLink,
     markLinkExpired,
     regenerateLink,
     updateAssignmentDetails,
-    updateAssessmentStatus,
     generateLink,
-    addAssignment,
     updateAssignmentStatus,
     removeLink,
     removeAssignment,
