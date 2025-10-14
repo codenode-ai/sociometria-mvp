@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 
 export interface User {
@@ -8,38 +9,67 @@ export interface User {
 
 export type InsertUser = Omit<User, "id">;
 
-// modify the interface with any CRUD methods
-// you might need
-
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+// Cria o cliente Supabase usando variáveis de ambiente
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY!;
 
-  constructor() {
-    this.users = new Map();
-  }
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+/**
+ * Implementação de storage persistente usando Supabase.
+ */
+export class SupabaseStorage implements IStorage {
+  private table = "users"; // nome da tabela no Supabase
 
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const { data, error } = await supabase
+      .from(this.table)
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      console.error("Erro ao buscar usuário:", error.message);
+      return undefined;
+    }
+
+    return data as User | undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const { data, error } = await supabase
+      .from(this.table)
+      .select("*")
+      .eq("username", username)
+      .single();
+
+    if (error) {
+      if (error.code !== "PGRST116") console.error("Erro ao buscar usuário:", error.message);
+      return undefined;
+    }
+
+    return data as User | undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
     const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+
+    const { error } = await supabase.from(this.table).insert([user]);
+
+    if (error) throw new Error(`Erro ao criar usuário: ${error.message}`);
+
     return user;
   }
 }
 
-export const storage = new MemStorage();
+// Exporta uma instância única
+export const storage = new SupabaseStorage();
+
