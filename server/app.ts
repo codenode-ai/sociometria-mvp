@@ -13,18 +13,18 @@ export function createApp() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
 
-  // Middleware de log
+  // Middleware de log detalhado
   app.use((req: Request, res: Response, next: NextFunction) => {
     const start = Date.now();
     const path = req.path;
     let capturedJsonResponse: Record<string, any> | undefined;
 
-    // Captura da resposta JSON
+    // Captura da resposta JSON (corrigido para TS 5.6)
     const originalResJson = res.json.bind(res);
-    res.json = function (bodyJson: any, ...args: any[]) {
+    res.json = ((bodyJson: any) => {
       capturedJsonResponse = bodyJson;
-      return originalResJson(bodyJson, ...args);
-    };
+      return originalResJson(bodyJson);
+    }) as typeof res.json;
 
     // Log no final da requisição
     res.on("finish", () => {
@@ -32,7 +32,11 @@ export function createApp() {
       if (path.startsWith("/api")) {
         let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
         if (capturedJsonResponse) {
-          logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+          try {
+            logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+          } catch {
+            logLine += " :: [Unserializable JSON]";
+          }
         }
         if (logLine.length > 180) logLine = `${logLine.slice(0, 177)}...`;
         log(logLine);
@@ -55,7 +59,7 @@ export function createApp() {
     const route = req.originalUrl ?? req.path ?? "<unknown>";
     log(`[${status}] ${req.method} ${route}: ${message}`, "error");
 
-    // Só imprime stack trace localmente
+    // Stack trace apenas fora de produção
     if (process.env.NODE_ENV !== "production" && err?.stack) {
       console.error(err.stack);
     }
@@ -66,4 +70,3 @@ export function createApp() {
 }
 
 export default createApp;
-
