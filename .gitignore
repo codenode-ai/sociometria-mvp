@@ -9,3 +9,4 @@ dev-*.log
 
 client/.env.local
 server/server.env
+.vercel
