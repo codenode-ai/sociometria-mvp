@@ -1,6 +1,6 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { z } from "zod";
-import { supabaseAdmin } from "../lib/supabase";
+import { getSupabaseAdmin } from "../lib/supabase";
 import { requireAuthenticated } from "../middleware/auth";
 import type { House } from "@shared/schema";
 
@@ -74,6 +74,7 @@ housesRouter.use(requireAuthenticated);
 
 housesRouter.get("/", async (_req, res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from("houses")
       .select("id, code, name, cleaning_type, size, address, tags, notes, created_at, updated_at")
@@ -90,6 +91,7 @@ housesRouter.get("/", async (_req, res, next) => {
 
 housesRouter.post("/", async (req, res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const payload = houseInsertSchema.parse(req.body);
     const { data, error } = await supabaseAdmin
       .from("houses")
@@ -107,6 +109,7 @@ housesRouter.post("/", async (req, res, next) => {
 
 housesRouter.put("/:id", async (req, res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { id } = req.params;
     const payload = houseUpdateSchema.parse(req.body);
 
@@ -127,6 +130,7 @@ housesRouter.put("/:id", async (req, res, next) => {
 
 housesRouter.delete("/:id", async (req, res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { id } = req.params;
     const { error } = await supabaseAdmin.from("houses").delete().eq("id", id);
     if (error) throw error;

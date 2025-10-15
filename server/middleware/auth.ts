@@ -1,10 +1,12 @@
-﻿import type { RequestHandler } from "express";
-import { supabaseAdmin } from "../lib/supabase";
+import type { RequestHandler } from "express";
+import { getSupabaseAdmin } from "../lib/supabase";
 
 type UserRole = "admin" | "user";
 
 export const authenticateRequest: RequestHandler = async (req, _res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
+
     const authHeader = req.header("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return next();
