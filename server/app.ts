@@ -1,15 +1,16 @@
 import express, { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { log } from "./vite";
+import { SupabaseConfigError } from "./lib/supabase";
 
 /**
- * Cria e configura a aplica√ß√£o Express
- * Compat√≠vel com ambiente Serverless da Vercel.
+ * Cria e configura a aplicaÁ„o Express
+ * CompatÌvel com ambiente Serverless da Vercel.
  */
 export function createApp() {
   const app = express();
 
-  // Middleware padr√£o
+  // Middleware padr„o
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
 
@@ -26,7 +27,7 @@ export function createApp() {
       return originalResJson(bodyJson);
     }) as typeof res.json;
 
-    // Log no final da requisi√ß√£o
+    // Log no final da requisiÁ„o
     res.on("finish", () => {
       const duration = Date.now() - start;
       if (path.startsWith("/api")) {
@@ -51,7 +52,8 @@ export function createApp() {
 
   // Middleware de tratamento de erros
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
+    const isConfigError = err instanceof SupabaseConfigError;
+    const status = isConfigError ? 500 : err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
@@ -59,13 +61,12 @@ export function createApp() {
     const route = req.originalUrl ?? req.path ?? "<unknown>";
     log(`[${status}] ${req.method} ${route}: ${message}`, "error");
 
-    // Stack trace apenas fora de produ√ß√£o
     if (process.env.NODE_ENV !== "production" && err?.stack) {
       console.error(err.stack);
     }
   });
 
-  // Importante: N√ÉO usar app.listen() em ambiente Serverless!
+  // Importante: N√O usar app.listen() em ambiente Serverless!
   return { app };
 }
 

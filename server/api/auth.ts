@@ -1,15 +1,6 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { z } from "zod";
-import { createClient } from "@supabase/supabase-js";
-import { supabaseAdmin } from "../lib/supabase";
-
-const { SUPABASE_URL, SUPABASE_ANON_KEY } = process.env;
-
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY");
-}
-
-const supabasePublic = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+import { getSupabaseAdmin, getSupabasePublic } from "../lib/supabase";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -26,6 +17,8 @@ export const authRouter = Router();
 
 authRouter.post("/login", async (req, res, next) => {
   try {
+    const supabasePublic = getSupabasePublic();
+    const supabaseAdmin = getSupabaseAdmin();
     const { email, password } = loginSchema.parse(req.body);
 
     const { data, error } = await supabasePublic.auth.signInWithPassword({ email, password });
@@ -58,6 +51,8 @@ authRouter.post("/login", async (req, res, next) => {
 
 authRouter.post("/register", async (req, res, next) => {
   try {
+    const supabasePublic = getSupabasePublic();
+    const supabaseAdmin = getSupabaseAdmin();
     const { email, password, displayName } = registerSchema.parse(req.body);
 
     const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({

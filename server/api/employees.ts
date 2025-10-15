@@ -1,6 +1,6 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { z } from "zod";
-import { supabaseAdmin } from "../lib/supabase";
+import { getSupabaseAdmin } from "../lib/supabase";
 import { requireAuthenticated } from "../middleware/auth";
 
 const employeeInsertSchema = z.object({
@@ -21,6 +21,7 @@ employeesRouter.use(requireAuthenticated);
 
 employeesRouter.get("/", async (_req, res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from("employees")
       .select(
@@ -38,6 +39,7 @@ employeesRouter.get("/", async (_req, res, next) => {
 
 employeesRouter.post("/", async (req, res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const payload = employeeInsertSchema.parse(req.body);
     const { data, error } = await supabaseAdmin
       .from("employees")
@@ -57,6 +59,7 @@ employeesRouter.post("/", async (req, res, next) => {
 
 employeesRouter.put("/:id", async (req, res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { id } = req.params;
     const payload = employeeUpdateSchema.parse(req.body);
 
@@ -79,6 +82,7 @@ employeesRouter.put("/:id", async (req, res, next) => {
 
 employeesRouter.delete("/:id", async (req, res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { id } = req.params;
     const { error } = await supabaseAdmin.from("employees").delete().eq("id", id);
     if (error) throw error;

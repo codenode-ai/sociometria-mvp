@@ -1,20 +1,63 @@
-﻿import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error("Supabase environment variables SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY are missing");
+export class SupabaseConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SupabaseConfigError";
+  }
 }
 
-export const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-  db: {
-    schema: "sociometria",
-  },
-});
+type ClientVariant = "admin" | "public";
 
-export type SupabaseAdminClient = typeof supabaseAdmin;
+function requireEnv(name: string, variant: ClientVariant): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new SupabaseConfigError(
+      `Missing environment variable ${name} required for Supabase ${variant} client`,
+    );
+  }
+  return value;
+}
+
+let cachedAdminClient: SupabaseClient | null = null;
+let cachedPublicClient: SupabaseClient | null = null;
+
+export function getSupabaseAdmin(): SupabaseClient {
+  if (!cachedAdminClient) {
+    const url = requireEnv("SUPABASE_URL", "admin");
+    const key = requireEnv("SUPABASE_SERVICE_ROLE_KEY", "admin");
+
+    cachedAdminClient = createClient(url, key, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+      db: {
+        schema: "sociometria",
+      },
+    });
+  }
+
+  return cachedAdminClient;
+}
+
+export function getSupabasePublic(): SupabaseClient {
+  if (!cachedPublicClient) {
+    const url = requireEnv("SUPABASE_URL", "public");
+    const key = requireEnv("SUPABASE_ANON_KEY", "public");
+
+    cachedPublicClient = createClient(url, key, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+      db: {
+        schema: "sociometria",
+      },
+    });
+  }
+
+  return cachedPublicClient;
+}
+
+export type SupabaseAdminClient = ReturnType<typeof getSupabaseAdmin>;

@@ -1,6 +1,6 @@
-ï»¿import { Router } from "express";
+import { Router } from "express";
 import { z } from "zod";
-import { supabaseAdmin } from "../lib/supabase";
+import { getSupabaseAdmin } from "../lib/supabase";
 import { requireAuthenticated, requireAdmin } from "../middleware/auth";
 
 const optionSchema = z.object({
@@ -46,7 +46,7 @@ const testIdSchema = z.object({ id: z.string().uuid() });
 
 export const testsRouter = Router();
 
-// requer token vÃ¡lido para qualquer acesso ao mÃ³dulo
+// requer token válido para qualquer acesso ao módulo
 testsRouter.use(requireAuthenticated);
 
 function mapRpcTest(result: unknown) {
@@ -119,6 +119,7 @@ function mapRpcTest(result: unknown) {
 
 testsRouter.get("/", async (_req, res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin.rpc("get_psychological_tests");
     if (error) throw error;
     const mapped = (data ?? []).map(mapRpcTest);
@@ -130,6 +131,7 @@ testsRouter.get("/", async (_req, res, next) => {
 
 testsRouter.get("/:id", async (req, res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { id } = testIdSchema.parse(req.params);
     const { data, error } = await supabaseAdmin.rpc("get_psychological_test", { p_test_id: id });
     if (error) throw error;
@@ -144,6 +146,7 @@ testsRouter.get("/:id", async (req, res, next) => {
 
 testsRouter.post("/", requireAdmin, async (req, res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const payload = testPayloadSchema.parse(req.body);
     const { data, error } = await supabaseAdmin.rpc("create_psychological_test", { p_payload: payload });
     if (error) throw error;
@@ -155,6 +158,7 @@ testsRouter.post("/", requireAdmin, async (req, res, next) => {
 
 testsRouter.put("/:id", requireAdmin, async (req, res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { id } = testIdSchema.parse(req.params);
     const payload = testPayloadSchema.parse(req.body);
     const { data, error } = await supabaseAdmin.rpc("update_psychological_test", { p_test_id: id, p_payload: payload });
@@ -167,6 +171,7 @@ testsRouter.put("/:id", requireAdmin, async (req, res, next) => {
 
 testsRouter.delete("/:id", requireAdmin, async (req, res, next) => {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { id } = testIdSchema.parse(req.params);
     const { error } = await supabaseAdmin.rpc("delete_psychological_test", { p_test_id: id });
     if (error) throw error;
