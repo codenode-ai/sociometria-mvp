@@ -19,10 +19,12 @@ function requireEnv(name: string, variant: ClientVariant): string {
   return value;
 }
 
-let cachedAdminClient: SupabaseClient | null = null;
-let cachedPublicClient: SupabaseClient | null = null;
+type AnySupabaseClient = SupabaseClient<any, any, any, any, any>;
 
-export function getSupabaseAdmin(): SupabaseClient {
+let cachedAdminClient: AnySupabaseClient | null = null;
+let cachedPublicClient: AnySupabaseClient | null = null;
+
+export function getSupabaseAdmin(): AnySupabaseClient {
   if (!cachedAdminClient) {
     const url = requireEnv("SUPABASE_URL", "admin");
     const key = requireEnv("SUPABASE_SERVICE_ROLE_KEY", "admin");
@@ -41,7 +43,7 @@ export function getSupabaseAdmin(): SupabaseClient {
   return cachedAdminClient;
 }
 
-export function getSupabasePublic(): SupabaseClient {
+export function getSupabasePublic(): AnySupabaseClient {
   if (!cachedPublicClient) {
     const url = requireEnv("SUPABASE_URL", "public");
     const key = requireEnv("SUPABASE_ANON_KEY", "public");
