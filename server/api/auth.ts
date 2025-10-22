@@ -26,11 +26,14 @@ authRouter.post("/login", async (req, res, next) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const { data: profile } = await supabaseAdmin
+    // Usar .limit(1) para evitar erro se o perfil não existir
+    const { data: profiles } = await supabaseAdmin
       .from("user_profiles")
       .select("role, display_name")
       .eq("user_id", data.user.id)
-      .single();
+      .limit(1);
+
+    const profile = profiles?.[0] || null;
 
     const displayName =
       profile?.display_name ??
@@ -72,10 +75,18 @@ authRouter.post("/register", async (req, res, next) => {
       return res.status(status).json({ message: createError?.message ?? "Failed to create user" });
     }
 
-    await supabaseAdmin
+    // Criar ou atualizar o perfil do usuário em user_profiles
+    const { error: profileError } = await supabaseAdmin
       .from("user_profiles")
-      .update({ display_name: displayName })
-      .eq("user_id", createData.user.id);
+      .upsert({ 
+        user_id: createData.user.id, 
+        display_name: displayName,
+        role: "user"  // Definir role padrão para novos usuários
+      });
+
+    if (profileError) {
+      console.error("Error creating/updating user profile", profileError);
+    }
 
     const { data: signInData, error: signInError } = await supabasePublic.auth.signInWithPassword({
       email,
@@ -86,11 +97,14 @@ authRouter.post("/register", async (req, res, next) => {
       return res.status(201).json({ message: "Account created, login required" });
     }
 
-    const { data: profile } = await supabaseAdmin
+    // Usar .limit(1) para evitar erro se o perfil não existir
+    const { data: profiles } = await supabaseAdmin
       .from("user_profiles")
       .select("role")
       .eq("user_id", createData.user.id)
-      .single();
+      .limit(1);
+
+    const profile = profiles?.[0] || null;
 
     const displayNameResponse =
       displayName ??

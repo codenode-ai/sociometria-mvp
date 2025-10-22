@@ -1,27 +1,96 @@
-import "dotenv/config";
-import express from "express";
-import { createApp } from "./app"; // Usando a função createApp que já tem todos os middlewares configurados
+import express, { type Request, Response, NextFunction } from "express";
+import net from "net";
+import { registerRoutes } from "./routes";
+import { setupVite, serveStatic, log } from "./vite";
 
-const { app } = createApp();
+const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
-// Exportar o app para uso em ambiente serverless
-export default app;
+app.use((req, res, next) => {
+  const start = Date.now();
+  const path = req.path;
+  let capturedJsonResponse: Record<string, any> | undefined;
 
-// Apenas iniciar o servidor se NÃO estiver em ambiente serverless
-if (!process.env.VERCEL) {
-  const PORT = process.env.PORT || 5001;
-  
-  // Verificar se as variáveis de ambiente estão disponíveis
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("ERROR: Missing required environment variables for Supabase");
-    console.error("Please check your .env.local file contains:");
-    console.error("- SUPABASE_URL");
-    console.error("- SUPABASE_ANON_KEY");
-    console.error("- SUPABASE_SERVICE_ROLE_KEY");
-    process.exit(1);
-  }
-  
-  app.listen(PORT, () => {
-    console.log(`[express] serving on port ${PORT}`);
+  const originalResJson = res.json;
+  res.json = function (bodyJson, ...args) {
+    capturedJsonResponse = bodyJson;
+    return originalResJson.apply(res, [bodyJson, ...args]);
+  };
+
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    if (path.startsWith("/api")) {
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      }
+      if (logLine.length > 80) logLine = `${logLine.slice(0, 77)}...`;
+      log(logLine);
+    }
   });
+
+  next();
+});
+
+async function findAvailablePort(preferredPort: number): Promise<number> {
+  const testPort = (port: number) =>
+    new Promise<number>((resolve, reject) => {
+      const tester = net.createServer();
+      tester.once("error", (err) => {
+        if ((err as NodeJS.ErrnoException).code === "EADDRINUSE") {
+          resolve(-1);
+        } else reject(err);
+      });
+      tester.once("listening", () => {
+        tester.close(() => resolve(port));
+      });
+      tester.listen(port, "0.0.0.0");
+    });
+
+  let port = preferredPort;
+  while (true) {
+    const available = await testPort(port);
+    if (available !== -1) return available;
+    port += 1;
+  }
+}
+
+// 🧩 Detecta ambiente e age conforme
+if (process.env.VERCEL) {
+  // Ambiente Vercel (Serverless)
+  (async () => {
+    await registerRoutes(app);
+    serveStatic(app);
+  })();
+
+  // Exporta o app para o runtime da Vercel usar como handler
+  export default app;
+} else {
+  // Ambiente local (desenvolvimento ou VPS)
+  (async () => {
+    const server = await registerRoutes(app);
+
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      res.status(status).json({ message });
+      throw err;
+    });
+
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
+
+    const preferredPort = parseInt(process.env.PORT || "5001", 10);
+    const port = await findAvailablePort(preferredPort);
+    if (port !== preferredPort)
+      log(`port ${preferredPort} already in use, falling back to ${port}`);
+
+    server.listen({ port, host: "0.0.0.0" }, () => {
+      log(`serving on port ${port}`);
+    });
+  })();
 }
