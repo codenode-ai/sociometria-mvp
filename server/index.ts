@@ -3,6 +3,9 @@ import net from "net";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
+// ------------------------------------------------------------
+// 1️⃣ Criação do app
+// ------------------------------------------------------------
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -33,6 +36,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// ------------------------------------------------------------
+// 2️⃣ Exporta o app (necessário para Vercel serverless)
+// ------------------------------------------------------------
+export default app;
+
+// ------------------------------------------------------------
+// 3️⃣ Função auxiliar local (apenas usada fora da Vercel)
+// ------------------------------------------------------------
 async function findAvailablePort(preferredPort: number): Promise<number> {
   const testPort = (port: number) =>
     new Promise<number>((resolve, reject) => {
@@ -56,20 +67,12 @@ async function findAvailablePort(preferredPort: number): Promise<number> {
   }
 }
 
-// 🧩 Detecta ambiente e age conforme
-if (process.env.VERCEL) {
-  // Ambiente Vercel (Serverless)
+// ------------------------------------------------------------
+// 4️⃣ Execução local (ignorada pela Vercel)
+// ------------------------------------------------------------
+if (!process.env.VERCEL) {
   (async () => {
     await registerRoutes(app);
-    serveStatic(app);
-  })();
-
-  // Exporta o app para o runtime da Vercel usar como handler
-  export default app;
-} else {
-  // Ambiente local (desenvolvimento ou VPS)
-  (async () => {
-    const server = await registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err.status || err.statusCode || 500;
@@ -79,7 +82,7 @@ if (process.env.VERCEL) {
     });
 
     if (app.get("env") === "development") {
-      await setupVite(app, server);
+      await setupVite(app);
     } else {
       serveStatic(app);
     }
@@ -89,8 +92,14 @@ if (process.env.VERCEL) {
     if (port !== preferredPort)
       log(`port ${preferredPort} already in use, falling back to ${port}`);
 
-    server.listen({ port, host: "0.0.0.0" }, () => {
+    app.listen({ port, host: "0.0.0.0" }, () => {
       log(`serving on port ${port}`);
     });
+  })();
+} else {
+  // Ambiente Vercel: apenas registra rotas e serve estáticos
+  (async () => {
+    await registerRoutes(app);
+    serveStatic(app);
   })();
 }
