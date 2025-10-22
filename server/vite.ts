@@ -2,12 +2,15 @@ import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
-import { type Server } from "http";
+import type { Server } from "http";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
 
 const viteLogger = createLogger();
 
+/**
+ * Logger padrão para o servidor Express + Vite.
+ */
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -15,14 +18,17 @@ export function log(message: string, source = "express") {
     second: "2-digit",
     hour12: true,
   });
-
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
-export async function setupVite(app: Express, server: Server) {
+/**
+ * Configura o servidor Vite em modo middleware para ambiente local.
+ * O parâmetro `server` é opcional — usado apenas no modo HMR local.
+ */
+export async function setupVite(app: Express, server?: Server) {
   const serverOptions = {
     middlewareMode: true,
-    hmr: { server },
+    hmr: server ? { server } : false, // só ativa HMR se `server` for fornecido
     allowedHosts: true as const,
   };
 
@@ -41,23 +47,24 @@ export async function setupVite(app: Express, server: Server) {
   });
 
   app.use(vite.middlewares);
+
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
-
     try {
       const clientTemplate = path.resolve(
         import.meta.dirname,
         "..",
         "client",
-        "index.html",
+        "index.html"
       );
 
-      // always reload the index.html file from disk incase it changes
+      // recarrega o HTML a cada requisição (útil em dev)
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
       template = template.replace(
         `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
+        `src="/src/main.tsx?v=${nanoid()}"`
       );
+
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
@@ -65,21 +72,29 @@ export async function setupVite(app: Express, server: Server) {
       next(e);
     }
   });
+
+  log("Vite middleware configurado.");
 }
 
+/**
+ * Serve os arquivos estáticos do build de produção.
+ * Usado automaticamente na Vercel.
+ */
 export function serveStatic(app: Express) {
   const distPath = path.resolve(import.meta.dirname, "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+      `❌ Build directory not found: ${distPath}. Run 'npm run build' first.`
     );
   }
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
+  // fallback: se a rota não existir, devolve o index.html
   app.use("*", (_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });
+
+  log("Servindo arquivos estáticos a partir de " + distPath);
 }
