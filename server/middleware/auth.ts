@@ -28,12 +28,14 @@ export const authenticateRequest: RequestHandler = async (req, _res, next) => {
     };
     req.accessToken = token;
 
-    const { data: profile } = await supabaseAdmin
+    // Buscar o perfil do usuário com segurança, sem lançar erro se não existir
+    const { data: profiles } = await supabaseAdmin
       .from("user_profiles")
       .select("role")
       .eq("user_id", data.user.id)
-      .single();
+      .limit(1);
 
+    const profile = profiles?.[0] || null;
     req.userRole = (profile?.role as UserRole) ?? "user";
   } catch (_error) {
     // ignore token parsing errors and proceed without user context

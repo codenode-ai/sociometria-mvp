@@ -7,7 +7,8 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "tsx watch server/index.ts",
+    "dev:frontend": "vite",
     "build:client": "vite build",
     "build:server": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "build": "vite build && npm run build:server",
