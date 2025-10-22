@@ -1,4 +1,6 @@
+import "dotenv/config";
 import net from "net";
+import http from "http";
 import { createApp } from "./app";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -42,7 +44,20 @@ async function findAvailablePort(preferredPort: number): Promise<number> {
 // Somente inicia o servidor se NÃO estiver em ambiente serverless
 if (!isServerlessEnvironment()) {
   (async () => {
-    const { app, server } = createApp();
+    // Verificar se as variáveis de ambiente estão disponíveis
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      log("ERROR: Missing required environment variables for Supabase", "error");
+      log("Please check your .env.local file contains:", "error");
+      log("- SUPABASE_URL", "error");
+      log("- SUPABASE_ANON_KEY", "error");
+      log("- SUPABASE_SERVICE_ROLE_KEY", "error");
+      process.exit(1);
+    }
+
+    const { app } = createApp();
+    
+    // Criar o servidor HTTP e vincular ao app Express
+    const server = http.createServer(app);
 
     if (app.get("env") === "development") {
       await setupVite(app, server);

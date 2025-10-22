@@ -1,16 +1,17 @@
+import "dotenv/config";
 import express, { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { log } from "./vite";
 import { SupabaseConfigError } from "./lib/supabase";
 
 /**
- * Cria e configura a aplicação Express
- * Compatível com ambiente Serverless da Vercel.
+ * Cria e configura a aplicaï¿½ï¿½o Express
+ * Compatï¿½vel com ambiente Serverless da Vercel.
  */
 export function createApp() {
   const app = express();
 
-  // Middleware padrão
+  // Middleware padrï¿½o
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
 
@@ -27,7 +28,7 @@ export function createApp() {
       return originalResJson(bodyJson);
     }) as typeof res.json;
 
-    // Log no final da requisição
+    // Log no final da requisiï¿½ï¿½o
     res.on("finish", () => {
       const duration = Date.now() - start;
       if (path.startsWith("/api")) {
@@ -66,7 +67,7 @@ export function createApp() {
     }
   });
 
-  // Importante: NÃO usar app.listen() em ambiente Serverless!
+  // Importante: Nï¿½O usar app.listen() em ambiente Serverless!
   return { app };
 }
 
