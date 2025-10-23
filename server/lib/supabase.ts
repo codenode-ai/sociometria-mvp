@@ -1,5 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+/**
+ * Erro customizado para falhas de configuração do Supabase.
+ */
 export class SupabaseConfigError extends Error {
   constructor(message: string) {
     super(message);
@@ -9,11 +12,14 @@ export class SupabaseConfigError extends Error {
 
 type ClientVariant = "admin" | "public";
 
+/**
+ * Valida se a variável de ambiente existe.
+ */
 function requireEnv(name: string, variant: ClientVariant): string {
   const value = process.env[name];
   if (!value) {
     throw new SupabaseConfigError(
-      `Missing environment variable ${name} required for Supabase ${variant} client`,
+      `Missing environment variable ${name} required for Supabase ${variant} client`
     );
   }
   return value;
@@ -21,9 +27,17 @@ function requireEnv(name: string, variant: ClientVariant): string {
 
 type AnySupabaseClient = SupabaseClient<any, any, any, any, any>;
 
+/**
+ * Armazena clientes criados para evitar recriação em execução local.
+ * Em ambiente serverless, isso é recriado por invocação — o cache é seguro.
+ */
 let cachedAdminClient: AnySupabaseClient | null = null;
 let cachedPublicClient: AnySupabaseClient | null = null;
 
+/**
+ * Cria (ou retorna) o cliente com a chave de serviço (Service Role Key).
+ * Uso: operações administrativas e do servidor.
+ */
 export function getSupabaseAdmin(): AnySupabaseClient {
   if (!cachedAdminClient) {
     const url = requireEnv("SUPABASE_URL", "admin");
@@ -35,7 +49,10 @@ export function getSupabaseAdmin(): AnySupabaseClient {
         persistSession: false,
       },
       db: {
-        schema: "sociometria",
+        schema: "sociometria", // 🔧 altere aqui se quiser outro schema padrão
+      },
+      global: {
+        headers: { "x-application-name": "sociometria-mvp-admin" },
       },
     });
   }
@@ -43,6 +60,10 @@ export function getSupabaseAdmin(): AnySupabaseClient {
   return cachedAdminClient;
 }
 
+/**
+ * Cria (ou retorna) o cliente público (Anon Key).
+ * Uso: queries seguras feitas pelo cliente.
+ */
 export function getSupabasePublic(): AnySupabaseClient {
   if (!cachedPublicClient) {
     const url = requireEnv("SUPABASE_URL", "public");
@@ -50,11 +71,14 @@ export function getSupabasePublic(): AnySupabaseClient {
 
     cachedPublicClient = createClient(url, key, {
       auth: {
-        autoRefreshToken: false,
-        persistSession: false,
+        autoRefreshToken: true,
+        persistSession: true, // ✅ mantido para sessões de usuário autenticado
       },
       db: {
         schema: "sociometria",
+      },
+      global: {
+        headers: { "x-application-name": "sociometria-mvp-client" },
       },
     });
   }
@@ -62,4 +86,8 @@ export function getSupabasePublic(): AnySupabaseClient {
   return cachedPublicClient;
 }
 
+/**
+ * Tipagem útil para quando for importar os tipos de client.
+ */
 export type SupabaseAdminClient = ReturnType<typeof getSupabaseAdmin>;
+export type SupabasePublicClient = ReturnType<typeof getSupabasePublic>;
