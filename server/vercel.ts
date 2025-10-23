@@ -1,5 +1,14 @@
+// server/vercel.ts
 import { createApp } from "./app";
 
-const { app } = createApp();
+/**
+ * Exporta o Express app de forma compatível com o modelo Serverless da Vercel.
+ * Não executa nada fora do contexto de inicialização — a Vercel cuida do servidor.
+ */
 
-export default app;
+const createHandler = () => {
+  const { app } = createApp();
+  return app;
+};
+
+export default createHandler();

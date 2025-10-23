@@ -5,30 +5,29 @@ import { log } from "./vite";
 import { SupabaseConfigError } from "./lib/supabase";
 
 /**
- * Cria e configura a aplica��o Express
- * Compat�vel com ambiente Serverless da Vercel.
+ * Cria e configura a aplicação Express
+ * Compatível com o modelo Serverless da Vercel.
  */
 export function createApp() {
   const app = express();
 
-  // Middleware padr�o
+  // ---------- Middlewares padrão ----------
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
 
-  // Middleware de log detalhado
+  // ---------- Log de requisições detalhado ----------
   app.use((req: Request, res: Response, next: NextFunction) => {
     const start = Date.now();
     const path = req.path;
     let capturedJsonResponse: Record<string, any> | undefined;
 
-    // Captura da resposta JSON (corrigido para TS 5.6)
+    // Captura da resposta JSON
     const originalResJson = res.json.bind(res);
     res.json = ((bodyJson: any) => {
       capturedJsonResponse = bodyJson;
       return originalResJson(bodyJson);
     }) as typeof res.json;
 
-    // Log no final da requisi��o
     res.on("finish", () => {
       const duration = Date.now() - start;
       if (path.startsWith("/api")) {
@@ -48,10 +47,10 @@ export function createApp() {
     next();
   });
 
-  // Registro de rotas principais
+  // ---------- Registro das rotas ----------
   registerRoutes(app);
 
-  // Middleware de tratamento de erros
+  // ---------- Middleware de tratamento de erros ----------
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const isConfigError = err instanceof SupabaseConfigError;
     const status = isConfigError ? 500 : err.status || err.statusCode || 500;
@@ -62,13 +61,19 @@ export function createApp() {
     const route = req.originalUrl ?? req.path ?? "<unknown>";
     log(`[${status}] ${req.method} ${route}: ${message}`, "error");
 
+    // Em ambiente local, loga stacktrace
     if (process.env.NODE_ENV !== "production" && err?.stack) {
       console.error(err.stack);
     }
   });
 
-  // Importante: N�O usar app.listen() em ambiente Serverless!
+  // ⚠️ Importante: NUNCA usar app.listen() no modo Serverless.
   return { app };
 }
 
+/**
+ * Exportação padrão:
+ *  - compatível com import dinâmico da Vercel;
+ *  - evita execução fora do ciclo da Function.
+ */
 export default createApp;

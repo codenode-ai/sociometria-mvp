@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "regions": ["gru1"],
+
   "builds": [
     {
       "src": "dist/vercel.js",
@@ -10,8 +12,15 @@
       "use": "@vercel/static"
     }
   ],
+
   "routes": [
-    { "src": "/api/(.*)", "dest": "dist/vercel.js" },
-    { "src": "/(.*)", "dest": "/dist/public/index.html" }
+    {
+      "src": "/api/(.*)",
+      "dest": "dist/vercel.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/dist/public/index.html"
+    }
   ]
 }
